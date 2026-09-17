@@ -1,0 +1,244 @@
+@using System.Net.Http.Headers
+@using Analyzer.Shared.DTO
+@using System.Text.Json
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            
+            <MudTabPanel Text="История">
+                @if (_isLoadingHistory)
+                {
+                    <div class="d-flex justify-center pa-8">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    </div>
+                }
+                else if (!_history.Any())
+                {
+                    <MudText Color="Color.Secondary" Class="text-center pa-4">У вас пока нет загруженных аватаров.</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-4">
+                        @foreach (var avatar in _history)
+                        {
+                            <div class="avatar-wrapper">
+                                <MudImage Src="@(ConvertToBase64(avatar))"
+                                        Width="100" Height="100"
+                                        ObjectFit="ObjectFit.Cover"
+                                        Class="@GetAvatarClass(avatar.Id)"
+                                        @onclick="() => SelectAvatar(avatar.Id)" />
+
+                                @if (avatar.Id != CurrentAvatarId)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteForever"
+                                                Size="MudBlazor.Size.Small"
+                                                OnClick="@(() => DeleteAvatar(avatar.Id))"
+                                                Class="absolute delete-btn"
+                                                Style="position: absolute; top: -8px; right: -8px; background: #ff5252; color: white;" />
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Загрузить новый">
+                <div class="d-flex flex-column align-center justify-center pa-8 border-dashed border-2 mud-border-lines-default rounded-lg">
+                    <InputFile id="fileInput" OnChange="UploadNewAvatar" hidden accept="image/png, image/jpeg, image/webp" />
+                    <MudButton HtmlTag="label"
+                               for="fileInput"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               Disabled="@_isUploading">
+                        @if (_isUploading)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Загрузка...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Выбрать файл</MudText>
+                        }
+                    </MudButton>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">JPEG, PNG, WebP</MudText>
+                </div>
+            </MudTabPanel>
+
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(_selectedId == null)" OnClick="Submit">Выбрать</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+    
+    .avatar-container:hover .delete-btn {
+        opacity: 1;
+    }
+    
+    .delete-btn {
+        opacity: 0.6;
+        transition: opacity 0.2s;
+        z-index: 10;
+    }
+
+    .delete-btn:hover {
+        opacity: 1 !important;
+        transform: scale(1.1);
+    }
+
+     .avatar-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    /* Базовый стиль картинки */
+    .custom-avatar {
+        cursor: pointer;
+        border-radius: 12px;
+        border: 3px solid transparent; /* Резервируем место под рамку */
+        transition: all 0.25s ease; /* Плавность для всех изменений */
+    }
+
+    /* Подсветка при наведении (Manual Hover) */
+    .custom-avatar:hover {
+        border-color: #BDBDBD; /* Ручной цвет при наведении (светло-серый) */
+        transform: translateY(-4px); /* Легкий подъем вверх */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Стиль для выбранного аватара (Manual Selected) */
+    .custom-avatar.is-selected {
+        border-color: #4f46e5 !important; /* Твой ручной цвет (Indigo) */
+        transform: scale(1.05); /* Немного увеличиваем */
+        box-shadow: 0 0 15px rgba(79, 70, 229, 0.4); /* Свечение в цвет рамки */
+    }
+    
+    .avatar-wrapper:hover .delete-btn {
+        opacity: 1;
+    }
+</style>
+
+
+@code 
+{
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public Guid? CurrentAvatarId { get; set; }
+
+    private List<AvatarDto> _history = new();
+    private Guid? _selectedId;
+    private bool _isLoadingHistory = true;
+    private bool _isUploading = false;
+
+    // 5 MB
+    private const long MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selectedId = CurrentAvatarId;
+            await LoadHistoryAsync();
+        }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        _isLoadingHistory = true;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<AvatarDto>>(
+                "/api/v1/avatars/history");
+
+            if (result is not null) 
+                _history = result;
+        }
+        catch 
+        { 
+            _history = [];
+        }
+        finally
+        {
+            _isLoadingHistory = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetAvatarClass(Guid id)
+    {
+        return _selectedId == id ? "custom-avatar is-selected" : "custom-avatar";
+    }
+
+    private async Task DeleteAvatar(Guid id)
+    {
+        var response = await Http.DeleteAsync($"/api/v1/avatars/{id}");
+        
+        if (response.IsSuccessStatusCode)
+        {
+            _history.RemoveAll(a => a.Id == id);
+            if (_selectedId == id) _selectedId = CurrentAvatarId;
+            Snackbar.Add("Аватар удален", Severity.Success);
+        }
+    }
+
+    private void SelectAvatar(Guid id)
+    {
+        _selectedId = id;
+    }
+
+    private async Task UploadNewAvatar(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) 
+            return;
+
+        _isUploading = true;
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(file.OpenReadStream(MAX_FILE_SIZE)); 
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            
+            content.Add(fileContent, "file", file.Name);
+
+            var response = await Http.PostAsync("/api/v1/avatars/upload", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+                var newAvatarId = result.GetProperty("id").GetGuid();
+
+                MudDialog.Close(DialogResult.Ok(newAvatarId));
+            }
+            else
+            {
+                Snackbar.Add("Ошибка загрузки файла", Severity.Error);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Файл слишком большой или произошла ошибка", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+        }
+    }
+
+    private string ConvertToBase64(AvatarDto dto)
+    {
+        return $"data:{dto.ContentType};base64,{Convert.ToBase64String(dto.Data)}";
+    }
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_selectedId));
+    private void Cancel() => MudDialog.Cancel();
+}

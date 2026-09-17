@@ -1,0 +1,234 @@
+﻿@using Analyzer.Shared.DTO
+@using System.Security.Claims
+
+@inherits LayoutComponentBase
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudThemeProvider Theme="_myCustomTheme" @bind-IsDarkMode="_isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<MudLayout Class="@(_isThemeTransitioning ? "theme-transition" : "")">
+    <MudAppBar Elevation="0" 
+               Style="backdrop-filter: blur(8px);" 
+               Class="border-b mud-border-lines-default">
+
+        <AuthorizeView Roles="@(Role.Architect.ToString())">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" 
+                           Color="Color.Inherit" 
+                           Edge="Edge.Start"
+                           OnClick="@((e) => DrawerToggle())" />
+        </AuthorizeView>
+
+        <MudText Typo="Typo.h6" 
+                 Class="ml-2 font-bold" 
+                 Color="Color.Primary">Анализатор1337</MudText>
+        
+        <MudSpacer />
+
+        <AuthorizeView>
+            <SectionOutlet SectionName="TopbarSystemSelect" />
+
+            <MudIconButton Icon="@(_isDarkMode? 
+                                Icons.Material.Filled.LightMode : 
+                                Icons.Material.Filled.DarkMode)"
+                        Color="Color.Inherit" 
+                        OnClick="@ToggleThemeAsync" />
+
+            <MudMenu AnchorOrigin="Origin.BottomRight" 
+                    TransformOrigin="Origin.TopRight" 
+                    Class="ml-4"
+                    ListClass="pa-1">
+                <ActivatorContent>
+                    <MudAvatar Color="Color.Primary" 
+                            Variant="Variant.Filled" 
+                            Style="cursor: pointer;">
+                        @if (!string.IsNullOrWhiteSpace(_avatarImageString))
+                        {
+                            <MudImage Src="@(_avatarImageString)" 
+                                    ObjectFit="ObjectFit.Cover" />
+                        }
+                        else if (_currentUser is not null)
+                        {
+                            @(_currentUser.Username.FirstOrDefault().ToString().ToUpper())
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="MudBlazor.Size.Large"/>
+                        }
+                    </MudAvatar>
+                </ActivatorContent>
+                <ChildContent>
+                    <MudMenuItem Href="/me" 
+                                Icon="@Icons.Material.Filled.Person">
+                        Мой профиль
+                    </MudMenuItem>
+                    
+                    <MudDivider Class="my-1" />
+                    
+                    <MudMenuItem Href="/logout" 
+                                Icon="@Icons.Material.Filled.Logout" 
+                                IconColor="Color.Error">
+                        Выйти
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <AuthorizeView Roles="@(Role.Architect.ToString())" 
+                   Context="NavMenuContext">
+        <MudDrawer @bind-Open="_drawerOpen" 
+                   Elevation="0" 
+                   Variant="@DrawerVariant.Mini"
+                   Class="border-r mud-border-lines-default">
+            <MudNavMenu>
+                <MudNavLink Href="/" 
+                            Match="NavLinkMatch.All" 
+                            Icon="@Icons.Material.Filled.Dashboard">
+                    Дашборд
+                </MudNavLink>
+
+                <MudNavLink Href="/systems" 
+                        Icon="@Icons.Material.Filled.BubbleChart">
+                    Системы
+                </MudNavLink>
+            </MudNavMenu>
+        </MudDrawer>
+    </AuthorizeView>
+
+    <MudMainContent Class="d-flex flex-column" 
+                    Style="height: 100vh; overflow: hidden;">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    .theme-transition .mud-appbar,
+    .theme-transition .mud-drawer,
+    .theme-transition .mud-main-content,
+    .theme-transition .mud-paper,
+    .theme-transition .mud-theme-surface,
+    .theme-transition .graph-canvas {
+        transition-property: background-color, background, color, border-color, fill, box-shadow !important;
+        transition-duration: 0.4s !important;
+        transition-timing-function: ease !important;
+    }
+</style>
+
+@code 
+{
+    private bool _drawerOpen = false;
+    private bool _isDarkMode = false;
+
+    private bool _isThemeTransitioning = false;
+
+    private void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    
+    private UserDto? _currentUser;
+    private string _avatarImageString = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadUserDataAsync();
+            StateHasChanged(); 
+        }
+    }
+
+    private async Task LoadUserDataAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated ?? false)
+            {
+                _currentUser = await Http.GetFromJsonAsync<UserDto>("api/v1/users/me");
+                if (_currentUser is not null)
+                    await LoadAvatarImage(_currentUser.AvatarId);
+            }            
+        }
+        catch { }
+    }
+
+    private async Task LoadAvatarImage(Guid? id)
+    {
+        if (id is null)
+            return;
+
+        var response = await Http.GetAsync($"/api/v1/avatars/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/webp";
+            _avatarImageString = 
+                $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+        }
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        _isThemeTransitioning = true;
+        _isDarkMode = !_isDarkMode; 
+
+        await Task.Delay(450);
+
+        _isThemeTransitioning = false;
+    }
+
+    private readonly MudTheme _myCustomTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#4f46e5",
+            Black = "#110e2d",
+            AppbarText = "#424242",
+            AppbarBackground = "rgba(255,255,255,0.8)",
+            DrawerBackground = "#ffffff",
+            GrayLight = "#e8e8e8",
+            GrayLighter = "#f9f9f9",
+            Background = "#f4f4f5",
+            Surface = "#ffffff",
+            LinesDefault = "#e2e8f0"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#7e6fff",
+            Surface = "#1e1e2d",
+            Background = "#1a1a27",
+            BackgroundGray = "#151521",
+            AppbarText = "#92929f",
+            AppbarBackground = "rgba(26,26,39,0.8)",
+            DrawerBackground = "#1a1a27",
+            ActionDefault = "#74718e",
+            ActionDisabled = "#9999994d",
+            ActionDisabledBackground = "#605f6d4d",
+            TextPrimary = "#b2b0bf",
+            TextSecondary = "#92929f",
+            TextDisabled = "#ffffff33",
+            DrawerIcon = "#92929f",
+            DrawerText = "#92929f",
+            GrayLight = "#2a2833",
+            GrayLighter = "#1e1e2d",
+            Info = "#4a86ff",
+            Success = "#3dcb6c",
+            Warning = "#ffb545",
+            Error = "#ff3f5f",
+            LinesDefault = "#33323e",
+            TableLines = "#33323e",
+            Divider = "#292838",
+            OverlayLight = "#1e1e2d80",
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "8px",
+        }
+    };
+}

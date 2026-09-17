@@ -1,0 +1,161 @@
+@page "/me"
+@using System.Net.Http.Json
+@using Analyzer.Shared.DTO
+
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Мой профиль | FaultAnalyzer</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-16">
+    <MudText Typo="Typo.h4" Class="font-bold mb-6">Мой профиль</MudText>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-16">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        </div>
+    }
+    else if (_user is not null)
+    {
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Class="h-100 pa-4 rounded-lg">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudBadge Icon="@Icons.Material.Filled.Edit" 
+                                      Color="Color.Info" 
+                                      Overlap="true" 
+                                      Bordered="true" 
+                                      Class="cursor-pointer" 
+                                      OnClick="OpenAvatarDialog">
+                                      
+                                <MudAvatar Color="Color.Primary" Size="MudBlazor.Size.Large" Variant="Variant.Filled" Style="width: 64px; height: 64px;">
+                                    @if (_profileModel.AvatarId is not null)
+                                    {
+                                        <MudImage Src="@(_avatarImageString)" 
+                                                  ObjectFit="ObjectFit.Cover" 
+                                                  Width="64" Height="64" />
+                                    }
+                                    else
+                                    {
+                                        @(_user.Username.FirstOrDefault().ToString().ToUpper())
+                                    }
+                                </MudAvatar>
+                            </MudBadge>
+                        </CardHeaderAvatar>
+                    </MudCardHeader>
+                    
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">
+                            ID Команды: @_user.TeamId
+                        </MudText>
+
+                        <EditForm Model="@_profileModel" OnValidSubmit="UpdateProfileAsync">
+                            <DataAnnotationsValidator />
+
+                            <MudTextField @bind-Value="_profileModel.Username" 
+                                          For="@(() => _profileModel.Username)" 
+                                          Label="Имя пользователя" 
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Class="mb-4" />
+
+                            <MudTextField @bind-Value="_profileModel.Email" 
+                                          For="@(() => _profileModel.Email)" 
+                                          Label="Email адрес" 
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Class="mb-6" />
+
+                            <MudButton ButtonType="ButtonType.Submit" 
+                                       Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       Disabled="@_isSavingProfile">
+                                @if (_isSavingProfile)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true"/>
+                                    <MudText Class="ms-2">Сохранение...</MudText>
+                                }
+                                else
+                                {
+                                    <MudText>Сохранить изменения</MudText>
+                                }
+                            </MudButton>
+                        </EditForm>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Class="h-100 pa-4 rounded-lg">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <div class="d-flex align-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Warning" Class="mr-3" />
+                                <MudText Typo="Typo.h6" Class="font-bold">Безопасность</MudText>
+                            </div>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">
+                            Регулярно меняйте пароль для обеспечения безопасности вашего аккаунта.
+                        </MudText>
+
+                        <EditForm Model="@_passwordModel" OnValidSubmit="ChangePasswordAsync">
+                            <DataAnnotationsValidator />
+
+                            <MudTextField @bind-Value="_passwordModel.OldPassword" 
+                                          For="@(() => _passwordModel.OldPassword)" 
+                                          Label="Текущий пароль" 
+                                          InputType="@_oldPasswordInput"
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Adornment="Adornment.End"
+                                          AdornmentIcon="@_oldPasswordIcon"
+                                          OnAdornmentClick="ToggleOldPasswordVisibility"
+                                          Class="mb-4" />
+
+                            <MudTextField @bind-Value="_passwordModel.NewPassword" 
+                                          For="@(() => _passwordModel.NewPassword)" 
+                                          Label="Новый пароль" 
+                                          InputType="@_newPasswordInput"
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Adornment="Adornment.End"
+                                          AdornmentIcon="@_newPasswordIcon"
+                                          OnAdornmentClick="ToggleNewPasswordVisibility"
+                                          Class="mb-4" />
+
+                            <MudTextField @bind-Value="_passwordModel.ConfirmPassword" 
+                                          For="@(() => _passwordModel.ConfirmPassword)" 
+                                          Label="Подтвердите новый пароль" 
+                                          InputType="InputType.Password"
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Class="mb-6" />
+
+                            <MudButton ButtonType="ButtonType.Submit" 
+                                       Variant="Variant.Filled" 
+                                       Color="Color.Warning" 
+                                       Disabled="@_isSavingPassword">
+                                @if (_isSavingPassword)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true"/>
+                                    <MudText Class="ms-2">Сохранение...</MudText>
+                                }
+                                else
+                                {
+                                    <MudText>Обновить пароль</MudText>
+                                }
+                            </MudButton>
+                        </EditForm>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>

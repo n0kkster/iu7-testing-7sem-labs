@@ -1,0 +1,69 @@
+@page "/admin/users"
+@layout AdminLayout
+@attribute [Authorize(Roles = "Admin")]
+
+@using Analyzer.Shared.DTO
+@using Analyzer.Client.Components.Dialogs
+
+<div class="d-flex align-center justify-space-between mb-6">
+    <div>
+        <MudText Typo="Typo.h4" Class="font-bold">Пользователи</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary">Управление доступом к системе</MudText>
+    </div>
+</div>
+
+<MudPaper Elevation="0" Outlined="true" Class="pa-4 mb-4 bg-white d-flex align-center">
+    <MudText Class="mr-4 font-bold">Фильтр по роли:</MudText>
+    <MudSelect T="Role?" Value="@_selectedRoleFilter" ValueChanged="FilterByRole" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 250px;" Clearable="true" Placeholder="Все роли">
+        @foreach (Role role in Enum.GetValues(typeof(Role)))
+        {
+            if (role != Role.Unauthorized)
+            {
+                <MudSelectItem T="Role?" Value="@role">@role.ToString()</MudSelectItem>
+            }
+        }
+    </MudSelect>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        Всего пользователей: @_filteredUsers.Count
+    </MudText>
+</MudPaper>
+
+<MudTable Items="@_filteredUsers" Loading="@_isLoading" Elevation="1" Hover="true" Dense="true" Class="rounded-lg bg-white">
+    <HeaderContent>
+        <MudTh>Имя пользователя</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Роль</MudTh>
+        <MudTh>Команда</MudTh>
+        <MudTh Style="text-align: right;">Действия</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Имя" Class="font-bold">@context.Username</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Роль">
+            <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="MudBlazor.Size.Small" Variant="Variant.Text">
+                @context.Role
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Команда">
+            @if (context.Role == Role.Admin)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Глобальный доступ</MudText>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Default" Size="MudBlazor.Size.Small">
+                    @GetTeamName(context.TeamId)
+                </MudChip>
+            }
+        </MudTd>
+        <MudTd Style="text-align: right;">
+            <MudTooltip Text="Удалить пользователя">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="MudBlazor.Size.Small" OnClick="@(() => DeleteUserAsync(context))" />
+            </MudTooltip>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager RowsPerPageString="Записей на страницу:" InfoFormat="{first_item}-{last_item} из {all_items}" />
+    </PagerContent>
+</MudTable>

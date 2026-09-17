@@ -1,0 +1,53 @@
+@namespace Analyzer.Client.Components.Dialogs
+
+@using Analyzer.Shared.DTO
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_dto.Name" Label="Название команды" Variant="Variant.Outlined" Required="true" Class="mb-4" />
+        <MudTextField @bind-Value="_dto.Description" Label="Описание (необязательно)" Lines="3" Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@_isLoading">
+            @if (_isLoading) 
+            { 
+                <MudProgressCircular Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" /> 
+            }
+            Создать
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code 
+{
+    [CascadingParameter] 
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private CreateTeamDto _dto = new();
+    private bool _isLoading = false;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_dto.Name)) 
+            return;
+
+        _isLoading = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/v1/teams", _dto);
+            response.EnsureSuccessStatusCode();
+
+            var createdTeam = await response.Content.ReadFromJsonAsync<TeamDto>();
+            MudDialog.Close(DialogResult.Ok(createdTeam));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Ошибка создания команды.");
+            _isLoading = false;
+        }
+    }
+}

@@ -1,0 +1,11 @@
+@namespace Analyzer.Client.Components.Shared
+
+@inject NavigationManager NavManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        var returnUrl = Uri.EscapeDataString(NavManager.ToBaseRelativePath(NavManager.Uri));
+        NavManager.NavigateTo($"/login?returnUrl=/{returnUrl}", forceLoad: true);
+    }
+}

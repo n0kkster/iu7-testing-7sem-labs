@@ -1,0 +1,158 @@
+@page "/admin/teams"
+@layout AdminLayout
+@attribute [Authorize(Roles = "Admin")]
+
+@using Analyzer.Shared.DTO
+@using Analyzer.Client.Components.Dialogs
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+    <div class="d-flex align-center justify-space-between mb-6">
+        <div>
+            <MudText Typo="Typo.h5" Color="Color.Primary" Class="font-bold">Команды</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Управление рабочими пространствами и приглашениями
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add" 
+                   OnClick="OpenCreateTeamDialog">
+            Создать команду
+        </MudButton>
+    </div>
+
+    <MudTable Items="@_teams" Loading="@_isLoading" 
+              Elevation="0" Outlined="true" Hover="true" 
+              Dense="true" Class="mud-theme-surface rounded-lg">
+        <HeaderContent>
+            <MudTh Style="width: 50px;"></MudTh> 
+            <MudTh>Название команды</MudTh>
+            <MudTh>Описание</MudTh>
+            <MudTh>Кол-во участников</MudTh>
+            <MudTh Style="width: 50px;"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudIconButton Icon="@(context.ShowDetails ? 
+                                       Icons.Material.Filled.ExpandLess : 
+                                       Icons.Material.Filled.ExpandMore)" 
+                               OnClick="@(() => context.ShowDetails = !context.ShowDetails)" />
+            </MudTd>
+            <MudTd DataLabel="Название" Class="font-bold">@context.Name</MudTd>
+            <MudTd DataLabel="Описание">@context.Description</MudTd>
+            <MudTd DataLabel="Участники">
+                <MudChip T="string" Color="Color.Default" 
+                         Size="MudBlazor.Size.Small" 
+                         Icon="@Icons.Material.Filled.People">
+                    @context.MembersCount
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                               Color="Color.Error" Size="MudBlazor.Size.Small" 
+                               OnClick="@(() => DeleteTeam(context))" />
+            </MudTd>
+        </RowTemplate>
+        
+        <ChildRowContent>
+        @if (context.ShowDetails)
+        {
+            <MudTr>
+                <td colspan="5" class="pa-4 bg-light-gray">
+                    <MudCard Elevation="0" Outlined="true" Class="pa-4">
+                        <div class="d-flex align-center justify-space-between mb-4">
+                            <MudText Typo="Typo.h6">Активные инвайты команды</MudText>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Link" 
+                                       OnClick="@(() => GenerateInvite(context.Id))">
+                                Создать приглашение
+                            </MudButton>
+                        </div>
+
+                        @if (context.ActiveInvites.Any())
+                        {
+                            <MudList T="string" Dense="true" Class="border mud-border-lines-default rounded">
+                                @foreach (var invite in context.ActiveInvites)
+                                {
+                                    <MudListItem>
+                                        <div class="d-flex align-center justify-space-between w-100">
+                                            
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Email" 
+                                                         Size="MudBlazor.Size.Small" 
+                                                         Color="Color.Default" 
+                                                         Class="mr-2" />
+                                                <MudText Typo="Typo.body2" 
+                                                         Class="font-bold mr-3">
+                                                    @invite.TargetEmail
+                                                </MudText>
+                                                
+                                                <MudChip T="string" 
+                                                         Color="Color.Info" 
+                                                         Size="MudBlazor.Size.Small" 
+                                                         Variant="Variant.Text">
+                                                    @invite.Role
+                                                </MudChip>
+                                            </div>
+
+                                            <div class="d-flex align-center flex-grow-1 mx-4">
+                                                <MudTextField T="string"
+                                                            Value="@invite.Code"
+                                                            Label="Код"
+                                                            ReadOnly="true"
+                                                            Variant="Variant.Outlined"
+                                                            Margin="Margin.Dense"
+                                                            Class="invite-code-field"
+                                                            Adornment="Adornment.End"
+                                                            AdornmentIcon="@_icon"
+                                                            OnAdornmentClick="@(() => CopyAsync(invite.Code))"
+                                                            AdornmentColor="@_iconColor" />
+                                            </div>
+
+                                            <div class="d-flex align-center" 
+                                                 Style="justify-content: flex-end;">
+                                                <MudChip T="string" 
+                                                         Color="Color.Warning" 
+                                                         Size="MudBlazor.Size.Small" 
+                                                         Class="mr-2">
+                                                    До @invite.ExpirationDate.ToString("dd.MM.yyyy")
+                                                </MudChip>
+
+                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
+                                                               Color="Color.Error" Size="MudBlazor.Size.Small" 
+                                                               OnClick="@(() => RevokeInvite(context, invite.Id))" 
+                                                               Title="Отозвать" />
+                                            </div>
+
+                                        </div>
+                                    </MudListItem>
+                                }
+                            </MudList>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Нет активных приглашений.</MudText>
+                        }
+                    </MudCard>
+                </td>
+            </MudTr>
+        }
+    </ChildRowContent>
+    </MudTable>
+</MudContainer>
+
+<style>
+    .invite-code-field input {
+        pointer-events: none !important;
+        user-select: none !important;
+        color: var(--mud-palette-text-primary) !important; 
+        font-family: monospace;
+    }
+
+    .invite-code-field .mud-input-adornment {
+        color: var(--mud-palette-text-primary) !important; 
+        pointer-events: auto !important;
+        cursor: pointer;
+    }
+</style>

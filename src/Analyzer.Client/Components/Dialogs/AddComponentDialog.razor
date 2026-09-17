@@ -1,0 +1,119 @@
+@namespace Analyzer.Client.Components.Dialogs
+
+@using Analyzer.Shared.DTO;
+@using Analyzer.Domain.Enums;
+@using MudBlazor.Extensions
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (_createdGuid == null)
+        {
+            <MudTextField @bind-Value="_name" 
+                          Label="Название компонента" 
+                          Placeholder="PaymentService"
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense" 
+                          Class="mb-4" 
+                          Immediate="true"/>
+
+            <MudTextField @bind-Value="_desription" 
+                          Label="Описание компонента" 
+                          Placeholder="Отвечает за сбор подати с пользователей"
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense" 
+                          Class="mb-4" 
+                          Immediate="true"/>
+            
+            <MudSelect @bind-Value="_type" 
+                       Label="Тип компонента" 
+                       Variant="Variant.Outlined" 
+                       Margin="Margin.Dense">
+                <MudSelectItem Value="@(ComponentType.Microservice)">Микросервис</MudSelectItem>
+                <MudSelectItem Value="@(ComponentType.Database)">База данных</MudSelectItem>
+                <MudSelectItem Value="@(ComponentType.MessageBroker)">Брокер сообщений</MudSelectItem>
+                <MudSelectItem Value="@(ComponentType.ExternalAPI)">Внешнее API</MudSelectItem>
+            </MudSelect>
+        }
+        else
+        {
+            @* Если компонент создан, показываем результат *@
+            <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mb-4">
+                Компонент успешно добавлен в систему!
+            </MudAlert>
+            
+            <MudTextField Value="@_createdGuid.ToString()" 
+                          Label="Идентификатор (GUID)" 
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense" 
+                          ReadOnly="true"
+                        />
+        }
+    </DialogContent>
+    
+    <DialogActions>
+        @if (_createdGuid == null)
+        {
+            <MudButton OnClick="Cancel">Отмена</MudButton>
+            <MudButton Color="Color.Primary" 
+                       Variant="Variant.Filled" 
+                       OnClick="SubmitAsync" 
+                       Disabled="@(!IsFormValid || _isLoading)">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true"/>
+                    <MudText Class="ms-2">Сохранение...</MudText>
+                }
+                else
+                {
+                    <MudText>Создать</MudText>
+                }
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Close">Готово</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code 
+{ 
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] 
+    public Guid SelectedSystemId { get; set; }
+
+    private string? _name;
+    private string? _desription;
+    private ComponentType _type;
+    
+    private bool _isLoading = false;
+    private Guid? _createdGuid = null;
+
+    private bool IsFormValid => !string.IsNullOrWhiteSpace(_name) && !string.IsNullOrWhiteSpace(_desription);
+
+    private void Cancel() => MudDialog.Cancel();
+    
+    private void Close() => MudDialog.Close(DialogResult.Ok(_createdGuid));
+
+    private async Task SubmitAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            CreateComponentDto dto = new CreateComponentDto(SelectedSystemId, _type, _name ?? "", _desription ?? "");
+            var resp = await Http.PostAsJsonAsync<CreateComponentDto>("/api/v1/components/", dto);            
+            if (resp.IsSuccessStatusCode)
+            {
+                _createdGuid = await resp.Content.ReadFromJsonAsync<Guid>(); 
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

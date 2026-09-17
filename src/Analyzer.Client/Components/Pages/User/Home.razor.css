@@ -1,0 +1,28 @@
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.graph-canvas {
+    flex-grow: 1;
+    background-color: var(--mud-palette-background);
+    background-image: radial-gradient(var(--mud-palette-lines-default) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+::deep .diagram-canvas {
+    cursor: default;
+}
+
+::deep .default-node.selected > .mud-paper {
+    border-color: var(--mud-palette-primary) !important;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3) !important;
+}

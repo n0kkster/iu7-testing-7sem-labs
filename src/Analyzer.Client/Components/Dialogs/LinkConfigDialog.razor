@@ -1,0 +1,41 @@
+@using Analyzer.Domain.Enums
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect @bind-Value="_result.Severity" Label="Критичность" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4">
+            <MudSelectItem Value="@LinkSeverity.Low">Низкая (Есть альтернатива)</MudSelectItem>
+            <MudSelectItem Value="@LinkSeverity.Mid">Средняя (Частичный отказ)</MudSelectItem>
+            <MudSelectItem Value="@LinkSeverity.High">Высокая (Полный отказ)</MudSelectItem>
+        </MudSelect>
+        
+        <MudSelect @bind-Value="_result.Protocol" Label="Протокол" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelectItem Value="@ProtocolType.REST">REST</MudSelectItem>
+            <MudSelectItem Value="@ProtocolType.gRPC">gRPC</MudSelectItem>
+            <MudSelectItem Value="@ProtocolType.SOAP">SOAP</MudSelectItem>
+            <MudSelectItem Value="@ProtocolType.AMQP">AMQP</MudSelectItem>
+            <MudSelectItem Value="@ProtocolType.TCP">TCP/IP</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Сохранить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code 
+{
+    [CascadingParameter] 
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    public class LinkConfigResult
+    {
+        public LinkSeverity Severity { get; set; }
+        public ProtocolType Protocol { get; set; }
+    }
+
+    private LinkConfigResult _result = new();
+
+    private void Cancel() => MudDialog.Cancel();
+    
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_result));
+}

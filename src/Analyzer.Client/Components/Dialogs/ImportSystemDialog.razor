@@ -1,0 +1,44 @@
+@namespace Analyzer.Client.Components.Dialogs
+
+@using Analyzer.Shared.DTO
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_dto.Name" Label="Название системы" Variant="Variant.Outlined" Required="true" Class="mb-4" />
+        <MudTextField @bind-Value="_dto.Description" Label="Описание (необязательно)" Lines="3" Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@_isLoading">
+            @if (_isLoading) 
+            { 
+                <MudProgressCircular Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" /> 
+            }
+            Создать
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code 
+{
+    [CascadingParameter] 
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid TeamId { get; set; } 
+
+    private CreateITSystemDto _dto = new();
+    private bool _isLoading = false;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_dto.Name)) 
+            return;
+
+        _dto.TeamId = TeamId;
+        MudDialog.Close(DialogResult.Ok(_dto));
+    }
+}

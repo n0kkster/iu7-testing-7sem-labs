@@ -1,0 +1,60 @@
+@startuml
+autonumber
+actor "SRE / Архитектор" as User
+
+box "Frontend (Blazor Web App)" #LightCyan
+participant "Home.razor" as UI
+end box
+
+box "Backend (ASP.NET Core API)" #LightYellow
+participant "AnalysisController" as API
+participant "AnalysisService" as Service
+participant "GraphRepository" as NeoRepo
+participant "AnalysisRepository" as PgRepo
+end box
+
+database "Neo4j\n(Графы)" as Neo4j #LightGreen
+database "PostgreSQL" as Postgres #LightBlue
+
+User -> UI : Выбор типа анализа и клик "Запуск анализа" (AnalysisRequest)
+activate UI
+
+UI -> API : POST /api/v1/analysis/simulate
+activate API
+
+API -> Service : StartAnalysisAsync(AnalysisRequest)
+activate Service
+
+Service -> NeoRepo : GetImpactedComponentsAsync(NodeId)
+activate NeoRepo
+
+NeoRepo -> Neo4j : Cypher: MATCH (n)<-[:DEPENDS_ON*]-(dep) RETURN dep
+activate Neo4j
+Neo4j --> NeoRepo : result
+deactivate Neo4j
+
+NeoRepo --> Service : List<Component>
+deactivate NeoRepo
+
+Service -> Service : Вычисление критического пути\n(фильтрация по Severity)
+
+Service -> PgRepo : SaveAnalysisResultAsync(Result)
+activate PgRepo
+PgRepo -> Postgres : INSERT INTO AnalysisResults ...
+activate Postgres
+Postgres --> PgRepo : OK
+deactivate Postgres
+PgRepo --> Service : OK
+deactivate PgRepo
+
+Service --> API : AnalysisResult
+deactivate Service
+
+API --> UI : 200 OK + JSON (AnalysisResult)
+deactivate API
+
+UI -> UI : Раскраска упавших узлов в красный\nи затемнение здоровых
+UI --> User : Отображение визуализации отказа
+deactivate UI
+
+@enduml

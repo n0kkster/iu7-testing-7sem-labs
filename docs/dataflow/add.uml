@@ -1,0 +1,61 @@
+@startuml
+autonumber
+actor "Пользователь / Архитектор" as User
+
+box "Frontend (Blazor Web App)" #LightCyan
+participant "AddComponentDialog.razor" as UI
+end box
+
+box "Backend (ASP.NET Core API)" #LightYellow
+participant "ComponentController" as API
+participant "GraphService" as Service
+participant "GraphRepository" as Repo
+end box
+
+database "Neo4j" as DB #LightGreen
+
+User -> UI : Ввод данных (Имя, описание, тип) и клик "Добавить"
+activate UI
+
+UI -> UI : Проверить корректность\nвведенных данных
+
+alt Данные некорректны
+    UI --> User : Вывести сообщение об ошибке (Валидация)
+else Данные корректны
+    UI -> API : POST /api/v1/components
+    activate API
+
+    API -> Service : CreateComponentAsync(ComponentDto)
+    activate Service
+
+    Service -> Repo : AddComponentAsync(ComponentEntity)
+    activate Repo
+
+    Repo -> DB : CREATE (c:Component...)
+    activate DB
+    
+    alt Ошибка при создании (DB Exception)
+        DB --> Repo : Ошибка БД
+        Repo --> Service : Throw DbException ("Ошибка создания компонента")
+        Service --> API : DbException 
+        API --> UI : 500 / 400 Error
+        UI --> User : Вывести сообщение об ошибке
+    else Запись успешно создана
+        DB --> Repo : OK
+        deactivate DB
+        
+        Repo --> Service : Component ID
+        deactivate Repo
+        
+        Service --> API : Result (Component ID)
+        deactivate Service
+        
+        API --> UI : 201 Created + JSON (Component ID)
+        deactivate API
+        
+        UI --> User : Вывести сообщение об успехе\nи ID созданного компонента
+    end
+end
+
+deactivate UI
+@enduml

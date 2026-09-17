@@ -1,0 +1,128 @@
+@namespace Analyzer.Client.Components.Widgets
+
+@using Blazor.Diagrams.Core.Models
+@using Analyzer.Domain.Enums;
+@using Analyzer.Client.Models;
+
+<MudPaper Elevation="2" 
+    Class="@(@$"custom-node-wrapper pa-3 mud-theme-surface 
+        {(Node.IsFailed ? "failed-node" : "")} 
+        {(Node.IsDimmed ? "dimmed-node" : "")}
+        {(Node.IsSelected ? "selected-node" : "")}")" 
+    Style="
+        min-width: 180px; 
+        border: 1px solid var(--mud-palette-lines-default); 
+        border-radius: 8px; 
+        overflow: visible; 
+        position: relative;">
+
+    <div class="d-flex align-center">
+        <MudIcon Icon="@GetIcon()" Color="Color.Primary" Class="mr-2" />
+        <div>
+            <MudText Typo="Typo.subtitle2" Class="font-bold">@Node.Name</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@GetTypeTranslation()</MudText>
+        </div>
+    </div>
+
+    @foreach (var port in Node.Ports)
+    {
+        <PortRenderer @key="port" Port="port" />
+    }
+</MudPaper>
+
+<style>
+    @@keyframes pulse-error {
+        0% { box-shadow: 0 0 0 0 rgba(255, 63, 95, 0.7); }
+        70% { box-shadow: 0 0 15px 20px rgba(255, 63, 95, 0); }
+        100% { box-shadow: 0 0 10px 0 rgba(255, 63, 95, 0); }
+    }
+
+    .failed-node {
+        border-color: var(--mud-palette-error) !important;
+        background-color: rgba(255, 63, 95, 0.1) !important;
+        box-shadow: 0 0 15px rgba(255, 63, 95, 0.5);
+        animation: pulse-error 1.5s infinite;
+        z-index: 1000;
+    }
+    
+
+    .dimmed-node {
+        opacity: 0.3;
+        filter: grayscale(100%);
+        pointer-events: none;
+    }
+
+    .selected-node {
+        box-shadow: 0 0 15px rgb(144, 213, 255);
+    }
+
+    .custom-node-wrapper .diagram-port {
+        position: absolute !important;
+        width: 14px !important;
+        height: 14px !important;
+        background-color: var(--mud-palette-background) !important;
+        border: 2px solid var(--mud-palette-lines-default) !important;
+        border-radius: 50% !important;
+        z-index: 10;
+        cursor: crosshair;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .custom-node-wrapper .diagram-port:hover {
+        border-color: var(--mud-palette-primary) !important;
+        background-color: var(--mud-palette-primary) !important;
+    }
+
+    .custom-node-wrapper .diagram-port.top { 
+        top: -7px !important; 
+        left: 50% !important; 
+        transform: translateX(-50%) !important; 
+    }
+    
+    .custom-node-wrapper .diagram-port.bottom { 
+        bottom: -7px !important; 
+        left: 50% !important; 
+        transform: translateX(-50%) !important; 
+    }
+    
+    .custom-node-wrapper .diagram-port.left { 
+        left: -7px !important; 
+        top: 50% !important; 
+        transform: translateY(-50%) !important; 
+    }
+    
+    .custom-node-wrapper .diagram-port.right { 
+        right: -7px !important; 
+        top: 50% !important; 
+        transform: translateY(-50%) !important; 
+    }
+</style>
+
+@code {
+    [Parameter]
+    public required ComponentModel Node { get; set; }
+
+    private string GetTypeTranslation()
+    {
+        return Node.Type switch
+        {
+            ComponentType.Microservice => "Микросервис",
+            ComponentType.Database => "База данных",
+            ComponentType.MessageBroker => "Брокер сообщений",
+            ComponentType.ExternalAPI => "Внешнее API",
+            _ => "Неизвестно"
+        };
+    }
+
+    private string GetIcon()
+    {
+        return Node.Type switch
+        {
+            ComponentType.Database => Icons.Material.Filled.Storage,
+            ComponentType.MessageBroker => Icons.Material.Filled.AllInclusive,
+            ComponentType.ExternalAPI => Icons.Material.Filled.CloudQueue,
+            ComponentType.Microservice => Icons.Material.Filled.Memory,
+            _ => Icons.Material.Filled.QuestionMark
+        };
+    }
+}

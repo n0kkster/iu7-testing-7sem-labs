@@ -1,0 +1,136 @@
+@startchen
+
+left to right direction
+
+entity "User" as user {
+    id
+    username
+    email
+    password_hash
+}
+
+entity "Role" as role {
+    id
+    name
+    perms
+}
+
+entity "Team" as team {
+    id
+    name
+    description
+}
+
+entity "Invite" as invite {
+    id
+    code
+    expiration_date
+    status
+}
+
+entity "System" as system {
+    id
+    name
+    description
+    created_at
+    updated_at
+}
+
+entity "Component" as comp {
+    id
+    name
+    type
+    description
+}
+
+entity "Link" as link {
+    source_component_id
+    target_component_id
+    severity
+    proto
+}
+
+entity "AnalysisRequest" as analysis_req {
+    id
+    type
+    parameters
+    timestamp
+}
+
+entity "AnalysisReport" as report {
+    id
+    summary
+    impacted_nodes_count
+    execution_time_ms
+    result_data
+}
+
+relationship "Has" as has_role {
+}
+
+relationship "Is member of" as is_member { 
+}
+
+relationship "Attached to" as attached_to {
+}
+
+relationship "Activated by" as activated_by {
+}
+
+relationship "Owns" as owns {
+}
+
+relationship "Consists of" as consists_of {
+}
+
+relationship "Has inbounds" as has_inbounds {
+}
+
+relationship "Has outbounds" as has_outbounds {
+}
+
+relationship "Initiates" as initiates {
+}
+
+
+relationship "Analyzes" as analyzes {
+}
+
+relationship "Generates" as generates {
+}
+
+
+user -N- has_role
+role -1- has_role
+
+user -N- is_member
+team -1- is_member
+
+invite -N- attached_to
+team -1- attached_to
+
+invite -1- activated_by
+user -1- activated_by
+
+system -N- owns
+team -1- owns
+
+comp -N- consists_of
+system -1- consists_of
+
+comp -1- has_inbounds
+link -N- has_inbounds
+
+comp -1- has_outbounds
+link -N- has_outbounds
+
+user -1- initiates
+analysis_req -N- initiates
+
+analysis_req -1- analyzes
+system -1- analyzes
+
+analysis_req -1- generates
+report -1- generates
+
+@endchen

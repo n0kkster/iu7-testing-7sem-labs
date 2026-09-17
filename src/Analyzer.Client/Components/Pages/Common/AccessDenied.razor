@@ -1,0 +1,27 @@
+@page "/access-denied"
+
+<PageTitle>Доступ запрещен</PageTitle>
+
+<div class="d-flex flex-column align-center justify-center w-100" style="height: 100%; min-height: 60vh;">
+    @* Анимированная или просто крупная иконка щита/замка *@
+    <MudIcon Icon="@Icons.Material.Filled.GppMaybe" 
+             Color="Color.Error" 
+             Style="font-size: 8rem; opacity: 0.9;" 
+             Class="mb-4" />
+    
+    <MudText Typo="Typo.h2" Color="Color.Error" Class="font-bold mb-2">403</MudText>
+    <MudText Typo="Typo.h4" Class="font-bold mb-4">Доступ запрещен</MudText>
+    
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-8 text-center" Style="max-width: 500px;">
+        Извините, но вашей текущей роли недостаточно для просмотра этой страницы. 
+        Если вы считаете, что это ошибка, пожалуйста, обратитесь к системному администратору.
+    </MudText>
+    
+    <MudButton Variant="Variant.Filled" 
+               Color="Color.Primary" 
+               Size="MudBlazor.Size.Large"
+               StartIcon="@Icons.Material.Filled.Dashboard" 
+               Href="/">
+        Вернуться на дашборд
+    </MudButton>
+</div>

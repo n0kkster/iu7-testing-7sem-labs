@@ -1,0 +1,133 @@
+﻿@page "/"
+@using Analyzer.Client.Components.Panels
+
+@attribute [Authorize(Roles = "Developer, Architect, SRE")]
+
+<SectionContent SectionName="TopbarSystemSelect">
+    <MudSelect T="Guid?" 
+               Value="@_selectedSystemId" 
+               ValueChanged="OnSystemSelectedAsync" 
+               Variant="Variant.Outlined" 
+               Margin="Margin.Dense" 
+               Class="mr-4" 
+               Style="max-width: 250px;" 
+               Placeholder="Выберите систему...">
+        @foreach (var system in _systems ?? [])
+        {
+            <MudSelectItem T="Guid?" Value="@system.Id">@system.Name</MudSelectItem>
+        }
+    </MudSelect>
+</SectionContent>
+
+<div class="dashboard-container">
+    @* Верхняя панель инструментов для графа *@
+    <div class="toolbar border-b mud-border-lines-default pa-3 d-flex align-center mud-theme-surface"
+         style="background-color: var(--mud-palette-background);">
+        
+        @if (!_isAnalysisMode)
+        {
+            @if (_selectedSystemId is not null)
+            {
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Update" 
+                           Class="mr-3" 
+                           OnClick="RefreshGraphAsync">
+                    Обновить
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.AutoAwesomeMosaic" 
+                           Class="mr-3" 
+                           OnClick="AutoArrangeNodesAsync">
+                    Авто-раскладка
+                </MudButton>
+                
+                <AuthorizeView Roles="@($"{Role.Architect.ToString()}, {Role.SRE.ToString()}")">
+                    <MudButton Variant="Variant.Filled" 
+                                Color="Color.Secondary" 
+                                StartIcon="@Icons.Material.Filled.Loop" 
+                                Class="mr-3" 
+                                OnClick="RunCycleAnalysisAsync">
+                        Поиск циклов
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                                Color="Color.Error" 
+                                StartIcon="@Icons.Material.Filled.CrisisAlert" 
+                                Class="mr-3" 
+                                OnClick="RunSpofAnalysisAsync">
+                        SPOF Анализ
+                    </MudButton>
+                </AuthorizeView>
+                        
+                <MudSpacer />
+                
+                <AuthorizeView Roles="@(Role.Architect.ToString())">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Add" 
+                               OnClick="OpenAddComponentDialog">
+                        Добавить компонент
+                    </MudButton>
+                </AuthorizeView>
+
+            }
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Warning" 
+                       StartIcon="@Icons.Material.Filled.Close" 
+                       Class="mr-3" OnClick="ResetAnalysisMode">
+                Выйти из режима анализа
+            </MudButton>
+            
+            <MudText Typo="Typo.subtitle1" Color="Color.Warning" Class="font-bold ml-4">
+                <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="MudBlazor.Size.Small" Class="mr-2" />
+                Отображение результатов анализа
+            </MudText>
+        }
+    </div>
+
+    @* Контейнер для графа *@
+    <div class="graph-canvas">
+        @if (_selectedSystemId is null)
+        {
+            <div class="d-flex flex-column align-center justify-center" 
+                 style="height: 100%; color: var(--mud-palette-text-secondary);">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Style="font-size: 4rem;" Class="mb-4" />
+                <MudText Typo="Typo.h5">Система не выбрана</MudText>
+                <MudText Typo="Typo.body1">
+                    Выберите систему в верхнем меню для загрузки графа
+                </MudText>
+            </div>
+        }
+        else if (_isLoadingGraph)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        }
+        else
+        {
+            <CascadingValue Value="Diagram">
+                <DiagramCanvas class="w-100 h-100" />
+            </CascadingValue>
+        }
+    </div>
+</div>
+
+<ComponentPropertiesPanel 
+    IsOpen="@_isComponentPropertiesPanelOpen" 
+    ComponentModel="@_selectedComponentModel" 
+    OnClose="@(() => _isComponentPropertiesPanelOpen = false)"
+    OnGraphChanged="RefreshGraphAsync" 
+    OnSimulateFailure="RunSimulationAsync" 
+    OnPlanDecommissioning="RunDecommissioningAsync" 
+    OnAssessDeploymentRisk="RunDeploymentRiskAsync" />
+
+<LinkPropertiesPanel 
+    IsOpen="@_isLinkPropertiesPanelOpen" 
+    SelectedLink="@_selectedLinkModel"
+    SourceName="@_selectedLinkSourceName" 
+    TargetName="@_selectedLinkTargetName" 
+    OnClose="@(() => _isLinkPropertiesPanelOpen = false)" 
+    OnDelete="DeleteLink" />

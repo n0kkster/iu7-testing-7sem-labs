@@ -1,0 +1,66 @@
+@startuml
+autonumber
+actor "Пользователь" as User
+
+box "Frontend (Blazor Web App)" #LightCyan
+participant "Login.razor" as UI
+end box
+
+box "Backend (ASP.NET Core API)" #LightYellow
+participant "AuthController" as API
+participant "AuthService" as Service
+participant "UserRepository" as Repo
+end box
+
+database "PostgreSQL" as Postgres #LightBlue
+
+User -> UI : Ввод данных (Логин, пароль) и клик "Войти"
+activate UI
+
+UI -> UI : Проверить корректность\nвведенных данных
+
+alt Данные некорректны
+    UI --> User : Вывести сообщение об ошибке (Валидация)
+else Данные корректны
+    UI -> API : POST /api/v1/auth/login
+    activate API
+
+    API -> Service : AuthenticateAsync(LoginRequest)
+    activate Service
+
+    Service -> Repo : GetPasswordHashAsync(Username)
+    activate Repo
+
+    Repo -> Postgres : SELECT password_hash FROM users WHERE username = ...
+    activate Postgres
+    Postgres --> Repo : Результат (хеш или null)
+    deactivate Postgres
+
+    Repo --> Service : Данные из хранилища
+    deactivate Repo
+
+    alt Ответ пуст
+        Service --> API : Unauthorized ("Пользователя не существует")
+        API --> UI : 401 Unauthorized
+        UI --> User : Вывести сообщение об ошибке
+    else Ответ не пуст
+        Service -> Service : Получить хеш введенного пароля
+        Service -> Service : Проверить совпадение\nвведенного и сохраненного хешей
+
+        alt Хеши не совпали
+            Service --> API : Unauthorized ("Пользователя не существует / Неверный пароль")
+            API --> UI : 401 Unauthorized
+            UI --> User : Вывести сообщение об ошибке
+        else Хеши совпали
+            Service -> Service : Подтвердить авторизацию\n(Генерация токена)
+            Service --> API : AuthResult (Success, Token)
+            API --> UI : 200 OK + JSON (Token)
+            UI --> User : Вывести сообщение об успехе
+        end
+    end
+    deactivate Service
+    deactivate API
+end
+
+deactivate UI
+@enduml

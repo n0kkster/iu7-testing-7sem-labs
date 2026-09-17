@@ -1,0 +1,215 @@
+@namespace Analyzer.Client.Components.Panels
+
+@using Analyzer.Client.Models
+@using Analyzer.Shared.DTO
+@using System.Runtime.InteropServices
+@using System.Net.WebSockets
+@inject HttpClient Http
+
+<MudDrawer @bind-Open="IsOpen" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary" Width="400px"
+           OnClose="ClosePanel">
+    <MudDrawerHeader Class="d-flex align-center justify-space-between border-b mud-border-lines-default">
+        <MudText Typo="Typo.h6" Color="Color.Primary">Свойства компонента</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="ClosePanel" />
+    </MudDrawerHeader>
+
+    <div class="pa-4">
+        @if (_isLoading)
+        {
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="50px" Class="mb-4" />
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="50px" Class="mb-4" />
+        }
+        else if (_component != null)
+        {
+            <MudTextField T="string" Label="Название" @bind-Value="ComponentName" Immediate="true"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+            <MudTextField T="string" Label="Тип" Value="@_component.Type.ToString()" ReadOnly="true"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+            <MudTextField T="string" Label="GUID" Value="@_component.Id.ToString()" ReadOnly="true"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+            <MudTextField T="string" Label="Описание" @bind-Value="ComponentDesc" Immediate="true"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="UpdateAsync" Disabled="@(!_isFormValid)"
+                       StartIcon="@Icons.Material.Filled.Update" FullWidth="true">
+                @if (_isUpdating)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Сохранение...</MudText>
+                }
+                else
+                {
+                    <MudText>Обновить компонент</MudText>
+                }
+            </MudButton>
+
+            <AuthorizeView Roles="@(Role.Architect.ToString())">
+                <MudButton Color="Color.Error" 
+                        Variant="Variant.Filled" 
+                        OnClick="DeleteAsync" 
+                        Disabled="@_isDeleting"
+                        FullWidth="true" 
+                        Class="mt-6" 
+                        StartIcon="@Icons.Material.Filled.Delete">
+                    @if (_isDeleting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Удаление...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Удалить компонент</MudText>
+                    }
+                </MudButton>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="@($"{Role.Architect.ToString()}, {Role.SRE.ToString()}")">
+                <MudButton Color="Color.Error" 
+                        Variant="Variant.Filled" 
+                        OnClick="RunSimulationAsync"
+                        FullWidth="true" 
+                        Class="mt-6"
+                        StartIcon="@Icons.Material.Filled.PowerOff">
+                    Сымитировать падение
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Error" 
+                           FullWidth="true" 
+                           Class="mt-6"
+                           OnClick="@(() => OnPlanDecommissioning.InvokeAsync(_component.Id))">
+                    План вывода
+                </MudButton>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="@(Role.Developer.ToString())">
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Info" 
+                           FullWidth="true" 
+                           Class="mt-6"
+                           OnClick="@(() => OnAssessDeploymentRisk.InvokeAsync(_component.Id))">
+                    Оценка риска развертывания
+                </MudButton>
+            </AuthorizeView>
+
+        }
+    </div>
+</MudDrawer>
+
+@code {
+    [Parameter] public bool IsOpen 
+    { 
+        get; 
+        set
+        {
+            if (field == true && value == false)
+                ClosePanel().Wait();
+            field = value;
+        } 
+    }
+    [Parameter] public ComponentModel? ComponentModel { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnGraphChanged { get; set; }
+    [Parameter] public EventCallback<Guid> OnSimulateFailure { get; set; }
+    [Parameter] public EventCallback<Guid> OnPlanDecommissioning { get; set; }
+    [Parameter] public EventCallback<Guid> OnAssessDeploymentRisk { get; set; }
+
+    private ComponentDto? _component;
+    private bool _isLoading = false;
+    private bool _isUpdating = false;
+    private bool _isDeleting = false;
+    private bool _hasChanges = false;
+
+    private string ComponentName
+    {
+        get => _component?.Name ?? "";
+        set 
+        { 
+            if (_component is not null && _component.Name != value) 
+            { 
+                _component.Name = value; _hasChanges = true; 
+            }
+        }
+    }
+
+    private string ComponentDesc
+    {
+        get => _component?.Description ?? "";
+        set
+        {
+            if (_component is not null && _component.Description != value) 
+            { 
+                _component.Description = value; 
+                _hasChanges = true; 
+            }
+        }
+    }
+
+    private bool _isFormValid => 
+        _hasChanges && 
+        !_isUpdating && 
+        !string.IsNullOrWhiteSpace(ComponentName) &&
+        !string.IsNullOrWhiteSpace(ComponentDesc);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && ComponentModel is not null && 
+            (_component is null || _component.Id != ComponentModel.ComponentId))
+        {
+            _isLoading = true;
+            _hasChanges = false;
+            try 
+            { 
+                _component = await Http.GetFromJsonAsync<ComponentDto>(
+                    $"api/v1/components/{ComponentModel.ComponentId}"); 
+            }
+            finally 
+            { 
+                _isLoading = false; 
+            }
+        }
+    }
+
+    private async Task UpdateAsync()
+    {
+        if (_component is null) 
+            return;
+
+        _isUpdating = true;
+        await Http.PutAsJsonAsync("api/v1/components", _component);
+        _isUpdating = false;
+        
+        _hasChanges = false;
+        await OnGraphChanged.InvokeAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_component is null) 
+            return;
+        
+        _isDeleting = true;
+        await Http.DeleteAsync($"api/v1/components/{_component.Id}");
+        _isDeleting = false;
+        
+        await ClosePanel();
+        await OnGraphChanged.InvokeAsync();
+    }
+
+    private async Task RunSimulationAsync()
+    {
+        if (ComponentModel is not null)
+        {
+            await OnSimulateFailure.InvokeAsync(ComponentModel.ComponentId);
+            await ClosePanel();
+        }
+    }
+
+    private async Task ClosePanel()
+    {
+        ComponentModel?.IsSelected = false;
+        ComponentModel?.Refresh();
+
+        _component = null;
+        await OnClose.InvokeAsync();
+    }
+}

@@ -1,0 +1,95 @@
+services:
+  neo4j-ppo:
+    image: neo4j:latest
+    container_name: neo4j-ppo
+    ports:
+      - "${PORT_NEO4J_HTTP}:7474"
+      - "${PORT_NEO4J_BOLT}:7687"
+    environment:
+      NEO4J_AUTH: "${NEO4J_LOGIN}/${NEO4J_PASSWORD}"
+
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_export_file_enabled: true
+      NEO4J_apoc_import_file_enabled: true
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    volumes:
+      - ./.neo4j/data:/data
+      - ./.neo4j/logs:/logs
+    restart: on-failure
+
+  postgres-ppo:
+    image: postgres:17-alpine
+    container_name: postgres-ppo
+    environment:
+      POSTGRES_USER: "${POSTGRES_LOGIN}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB_NAME}"
+    ports:
+      - "${PORT_POSTGRES}:5432"
+    volumes:
+      - postgres-ppo-data:/var/lib/postgresql/data
+      - ./.postgres/data:/data
+    restart: on-failure
+    profiles: ["postgres", "migration"]
+
+  mongo-ppo:
+    image: mongo:latest
+    container_name: mongo-ppo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "${MONGO_LOGIN}"
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGO_PASSWORD}"
+    ports:
+      - "${PORT_MONGO}:27017"
+    volumes:
+      - mongo-ppo-data:/data/db
+    restart: on-failure
+    profiles: ["mongo", "migration"]
+
+  seq-ppo:
+    image: datalust/seq:latest
+    container_name: seq-ppo
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: true
+    ports:
+      - "${PORT_SEQ}:80"
+    volumes:
+      - seq-ppo-data:/data
+    restart: on-failure
+
+  api-ppo:
+    build:
+      context: .
+      dockerfile: Analyzer.Api/Dockerfile
+    container_name: analyzer-api-ppo
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Docker"
+      DatabaseProvider: "${DATABASE_PROVIDER}"
+    ports:
+      - "${PORT_API}:8080"
+    depends_on:
+      - neo4j-ppo
+      - seq-ppo
+    restart: on-failure
+    profiles: ["production"]
+
+  frontend-ppo:
+    build:
+      context: .
+      dockerfile: Analyzer.Client/Dockerfile
+    container_name: analyzer-web-ppo
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Docker"
+    ports:
+      - "${PORT_FRONT}:8080"
+    depends_on:
+      - api-ppo
+    restart: on-failure
+    profiles: ["production"]
+
+volumes:
+  postgres-ppo-data:
+    name: postgres-ppo-data
+  mongo-ppo-data:
+    name: mongo-ppo-data
+  seq-ppo-data:

@@ -1,0 +1,43 @@
+@startuml
+
+actor "Разработчик" as act_dev
+actor "Архитектор" as act_architect
+actor "SRE" as act_sre
+actor "Администратор" as act_admin
+actor "Незарегистрированный пользователь" as act_nonreg
+
+usecase "Авторизация" as uc_auth
+
+usecase "Оценка рисков развертывания" as uc_pre_dep_check
+usecase "Анализ последствий отказа" as uc_impact_analysis
+usecase "Поиск единых точек отказа" as uc_spof_detect
+usecase "Обнаружение циклических зависимостей" as uc_cycle_detect
+usecase "Планирование вывода из эксплуатации" as uc_decommissioning
+usecase "Изменение инфраструктуры" as uc_edit_system
+
+usecase "Создание приглашения для пользователя" as uc_invite
+usecase "Удаление пользователя" as uc_ban
+usecase "Изменение пользователя" as uc_edit_user
+usecase "Изменение команды" as uc_edit_team
+
+act_nonreg - uc_auth
+
+act_dev --- uc_auth
+act_dev -- uc_pre_dep_check
+
+act_sre --|> act_dev
+act_sre -- uc_impact_analysis
+act_sre --- uc_spof_detect
+act_sre --- uc_cycle_detect
+act_sre ---- uc_decommissioning
+
+act_architect --|> act_sre
+act_architect -- uc_edit_system
+
+act_admin - uc_auth
+act_admin -- uc_invite
+act_admin --- uc_ban
+act_admin --- uc_edit_user
+act_admin -- uc_edit_team
+
+@enduml

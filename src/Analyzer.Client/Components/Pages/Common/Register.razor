@@ -1,0 +1,105 @@
+@page "/register"
+@attribute [AllowAnonymous]
+
+@using Analyzer.Client.Services
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
+@using Analyzer.Shared.DTO
+@using Analyzer.Client.Utils
+
+@inject NavigationManager NavManager
+@inject IAuthService AuthService
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center mud-width-full" Style="height: 100vh;">
+    <MudPaper Elevation="3" Class="pa-8" Width="100%" MaxWidth="500px">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6 font-bold" Color="Color.Primary">Регистрация</MudText>
+
+        <EditForm method="post" FormName="RegisterForm" OnSubmit="HandleRegister" Model="_dto">            
+            <MudTextField @bind-Value="_dto.Email" 
+                          Placeholder="Электронная почта" 
+                          Variant="Variant.Outlined" 
+                          Class="mb-4" 
+                          Name="_dto.Email" />
+
+            <MudTextField @bind-Value="_dto.Username" 
+                          Placeholder="Логин" 
+                          Variant="Variant.Outlined" 
+                          Class="mb-4" 
+                          Name="_dto.Username" />
+                          
+            <MudTextField @bind-Value="_dto.Password" 
+                          Placeholder="Пароль" 
+                          InputType="InputType.Password" 
+                          Variant="Variant.Outlined" 
+                          Class="mb-6" 
+                          Name="_dto.Password" />
+
+            <MudTextField @bind-Value="_dto.InviteCode" 
+                          Placeholder="Код приглашения" 
+                          Variant="Variant.Outlined" 
+                          Class="mb-6" 
+                          Name="_dto.InviteCode" />
+            
+            <button type="submit" 
+                    class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-size-large mud-width-full" 
+                    disabled="@_isSubmitting">
+                Присоединиться
+            </button>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    public HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "RegisterForm")]
+    public RegisterDto _dto { get; set; } = default!;
+
+    private bool _isSubmitting;
+
+    protected override void OnInitialized()
+    {
+        _dto ??= new();
+    }
+
+    public async Task HandleRegister()
+    {
+        _isSubmitting = true;
+
+        var registerSuccessful = await AuthService.RegisterAsync(_dto);
+        if (!registerSuccessful)
+        {
+            _isSubmitting = false;
+            return;
+        }
+
+        LoginDto loginDto = new()
+        {
+            Username = _dto.Username,
+            Password = _dto.Password
+        };
+
+        var principal = await AuthService.LoginAsync(loginDto);
+
+        if (principal is null)
+        {
+            _isSubmitting = false;
+            return;
+        }
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2)
+            });
+
+        _isSubmitting = false;
+
+        NavManager.NavigateTo("/");
+    }
+}

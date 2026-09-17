@@ -1,0 +1,66 @@
+@namespace Analyzer.Client.Components.Panels
+
+@inject HttpClient Http
+
+<MudDrawer Open="@IsOpen" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary" Width="400px"
+           OnClose="ClosePanel">
+    <MudDrawerHeader Class="d-flex align-center justify-space-between border-b mud-border-lines-default">
+        <MudText Typo="Typo.h6" Color="Color.Primary">Свойства связи</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="ClosePanel" />
+    </MudDrawerHeader>
+
+    <div class="pa-4">
+        @if (!string.IsNullOrEmpty(SourceName) && !string.IsNullOrEmpty(TargetName))
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+                Зависимость: <b>@SourceName</b> ➔ <b>@TargetName</b>
+            </MudAlert>
+
+            <MudTextField T="string" Label="Критичность" Value="@SelectedLink!.Severity.ToString()" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+            
+            <MudTextField T="string" Label="Протокол связи" Value="@SelectedLink!.Protocol.ToString()" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-6" />
+
+            <MudButton Color="Color.Error" 
+                       Variant="Variant.Filled"
+                       FullWidth="true" 
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="DeleteLinkAsync">
+                @if (_isDeleting)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Удаление...</MudText>
+                }
+                else
+                {
+                    <MudText>Удалить связь</MudText>
+                }
+            </MudButton>
+        }
+    </div>
+</MudDrawer>
+
+@code 
+{
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public Models.LinkModel? SelectedLink { get; set; }
+    [Parameter] public string? SourceName { get; set; }
+    [Parameter] public string? TargetName { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<Models.LinkModel?> OnDelete { get; set; }
+
+    private bool _isDeleting = false;
+
+    private async Task ClosePanel() => await OnClose.InvokeAsync();
+
+    private async Task DeleteLinkAsync()
+    {
+        if (SelectedLink is null)
+            return;
+
+        _isDeleting = true;
+        await Http.DeleteAsync($"api/v1/links/{SelectedLink.LinkId}");
+        _isDeleting = false;
+
+        await OnDelete.InvokeAsync(SelectedLink);
+    }
+}

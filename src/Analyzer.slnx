@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="Analyzer.Api/Analyzer.Api.csproj" />
+  <Project Path="Analyzer.Application/Analyzer.Application.csproj" />
+  <Project Path="Analyzer.Client/Analyzer.Client.csproj" />
+  <Project Path="Analyzer.Domain/Analyzer.Domain.csproj" />
+  <Project Path="Analyzer.Infrastructure/Analyzer.Infrastructure.csproj" />
+  <Project Path="Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj" />
+  <Project Path="Analyzer.Migrator/Analyzer.Migrator.csproj" />
+  <Project Path="Analyzer.Shared/Analyzer.Shared.csproj" />
+  <Project Path="Analyzer.Tests/Analyzer.Tests.csproj" />
+</Solution>

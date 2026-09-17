@@ -1,0 +1,72 @@
+@namespace Analyzer.Client.Components.Dialogs
+
+@using Analyzer.Shared.DTO
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_dto.Email" Label="Email получателя приглашения" Variant="Variant.Outlined"
+                      Required="true" Class="mb-4" />
+        <MudNumericField @bind-Value="_dto.ValidForDays" HideSpinButtons="true" Label="Срок действия приглашения в днях"
+                         Variant="Variant.Outlined" Min="1" Max="14" />
+        <MudSelect @bind-Value="_dto.Role" Label="Роль" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelectItem Value="@(Role.Architect)">Архитектор</MudSelectItem>
+            <MudSelectItem Value="@(Role.SRE)">SRE инженер</MudSelectItem>
+            <MudSelectItem Value="@(Role.Developer)">Разработчик</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@_isLoading">
+            @if (_isLoading)
+            {
+                <MudProgressCircular Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Создать
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code
+{
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid TeamId { get; set; }
+
+    private GenerateInviteDto _dto = new()
+    {
+        Email = "",
+        Role = Role.Developer,
+        ValidForDays = 7,
+    };
+    
+    private bool _isLoading = false;
+    private bool IsFormValid => !string.IsNullOrWhiteSpace(_dto.Email);
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        if (!IsFormValid)
+            return;
+
+        _dto.TeamId = TeamId;
+
+        _isLoading = true;
+        try
+        {
+
+            var response = await Http.PostAsJsonAsync($"api/v1/invites/", _dto);
+            response.EnsureSuccessStatusCode();
+
+            var newInvite = await response.Content.ReadFromJsonAsync<InviteDto>();
+            MudDialog.Close(DialogResult.Ok(newInvite));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Ошибка создания приглашения.");
+            _isLoading = false;
+        }
+    }
+}

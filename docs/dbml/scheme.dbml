@@ -1,0 +1,72 @@
+Table users {
+  id integer [primary key, increment]
+  username text [unique, not null]
+  email text [unique, not null]
+  password_hash text [not null]
+  role_id integer [not null]
+  team_id integer [not null]
+}
+
+Table roles {
+  id integer [primary key, increment]
+  name text [unique, not null]
+  perms jsonb [note: 'Хранение разрешений в формате JSON']
+}
+
+Table teams {
+  id integer [primary key, increment]
+  name text [not null]
+  description text
+}
+
+Table invites {
+  id integer [primary key, increment]
+  code text [unique, not null]
+  expiration_date timestamp [not null]
+  status text [not null, default: 'pending']
+  team_id integer [not null]
+  activated_by_user_id integer [note: 'NULL, если еще не активирован']
+}
+
+Table systems {
+  id integer [primary key, increment]
+  name text [not null]
+  description text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  team_id integer [not null]
+}
+
+Table analysis_requests {
+  id integer [primary key, increment]
+  type text [not null]
+  parameters jsonb [note: 'Настройки и параметры запроса на анализ']
+  timestamp timestamp [default: `now()`]
+  user_id integer [not null]
+  system_id integer [not null]
+}
+
+Table analysis_reports {
+  id integer [primary key, increment]
+  summary text
+  impacted_nodes_count integer
+  execution_time_ms integer
+  result_data jsonb [note: 'Детализированные результаты анализа']
+  analysis_request_id integer [unique, not null]
+}
+
+Ref: users.role_id > roles.id
+
+Ref: users.team_id > teams.id
+
+Ref: invites.team_id > teams.id
+
+Ref: invites.activated_by_user_id - users.id
+
+Ref: systems.team_id > teams.id
+
+Ref: analysis_requests.user_id > users.id
+
+Ref: analysis_requests.system_id > systems.id
+
+Ref: analysis_reports.analysis_request_id - analysis_requests.id
