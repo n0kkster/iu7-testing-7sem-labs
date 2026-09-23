@@ -87,6 +87,17 @@ services:
     restart: on-failure
     profiles: ["production"]
 
+  prism-mock:
+    image: stoplight/prism:5
+    container_name: prism-mock-ppo
+    ports:
+      - "${PORT_MOCK:-4010}:4010"
+    volumes:
+      - ./openapi.yaml:/openapi.yaml:ro
+    command: ["mock", "-h", "0.0.0.0", "-m", "false", "/openapi.yaml"]
+    restart: on-failure
+    profiles: ["mock", "tools"]
+
 volumes:
   postgres-ppo-data:
     name: postgres-ppo-data
