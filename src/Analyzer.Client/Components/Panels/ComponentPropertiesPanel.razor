@@ -175,7 +175,8 @@
             return;
 
         _isUpdating = true;
-        await Http.PutAsJsonAsync("api/v1/components", _component);
+        var updateDto = new UpdateComponentDto(_component.Name, _component.Description, _component.Type);
+        await Http.PutAsJsonAsync($"api/v1/components/{_component.Id}", updateDto);
         _isUpdating = false;
         
         _hasChanges = false;

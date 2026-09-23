@@ -10,26 +10,33 @@ using Microsoft.AspNetCore.Mvc;
 [Route("api/v1/links")]
 public class LinkController(IGraphService graphService) : ControllerBase
 {
-    readonly IGraphService _graphService = graphService;
+    private readonly IGraphService _graphService = graphService;
 
     [HttpGet]
-    public async Task<IActionResult> GetAllLinksBySystemId([FromQuery] Guid systemId)
+    public async Task<ActionResult<IReadOnlyCollection<LinkDto>>> GetAllLinksBySystemId([FromQuery] Guid systemId)
     {
-        var componentDtos = await _graphService.GetLinksBySystemIdAsync(systemId);
-        return Ok(componentDtos);
+        var links = await _graphService.GetLinksBySystemIdAsync(systemId);
+        return Ok(links);
+    }
+
+    [HttpGet("~/api/v1/systems/{systemId:guid}/links")]
+    public async Task<ActionResult<IReadOnlyCollection<LinkDto>>> GetLinksBySystem(Guid systemId)
+    {
+        var links = await _graphService.GetLinksBySystemIdAsync(systemId);
+        return Ok(links);
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateLink([FromBody] CreateLinkDto linkDto)
     {
-        var guid = await _graphService.CreateLinkAsync(linkDto);
-        return Ok(guid);
+        var id = await _graphService.CreateLinkAsync(linkDto);
+        return StatusCode(StatusCodes.Status201Created, new { id });
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteLink(Guid id)
     {
         await _graphService.DeleteLinkAsync(id);
-        return Ok();
+        return NoContent();
     }
 }

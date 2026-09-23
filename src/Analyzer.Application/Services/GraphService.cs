@@ -3,40 +3,22 @@ namespace Analyzer.Application.Services;
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Shared.DTO;
-using Analyzer.Domain.Exceptions;
 using Analyzer.Domain.Entities;
 
 public class GraphService(IGraphRepository repository) : IGraphService
 {
-    readonly IGraphRepository _repository = repository;
+    private readonly IGraphRepository _repository = repository;
 
     public async Task<IReadOnlyCollection<ComponentDto>> GetComponentsBySystemIdAsync(Guid systemId)
     {
         var components = await _repository.GetComponentsBySystemIdAsync(systemId);
-        var componentDtos = components.Select(component => new ComponentDto() {
-            Id = component.Id,
-            SystemId = component.SystemId,
-            Type = component.Type,
-            Name = component.Name,
-            Description = component.Description
-        }).ToList();
-
-        return componentDtos;
+        return components.Select(MapToDto).ToList();
     }
 
     public async Task<ComponentDto> GetComponentDetailsAsync(Guid id)
     {
         var component = await _repository.GetComponentAsync(id);
-        ComponentDto componentDto = new()
-        {
-            Id = component.Id,
-            SystemId = component.SystemId,
-            Type = component.Type,
-            Name = component.Name,
-            Description = component.Description
-        };
-
-        return componentDto;
+        return MapToDto(component);
     }
 
     public async Task<Guid> CreateComponentAsync(CreateComponentDto dto)
@@ -53,18 +35,35 @@ public class GraphService(IGraphRepository repository) : IGraphService
         return component.Id;
     }
 
-    public async Task UpdateComponentAsync(ComponentDto dto)
+    public async Task<ComponentDto> UpdateComponentAsync(Guid id, UpdateComponentDto dto)
     {
-        var component = new Component
+        var existing = await _repository.GetComponentAsync(id);
+
+        var updated = new Component
         {
-            Id = dto.Id,
+            Id = id,
+            SystemId = existing.SystemId,
             Type = dto.Type,
             Name = dto.Name,
-            Description = dto.Description,
-            SystemId = dto.SystemId
+            Description = dto.Description
         };
 
+        await _repository.UpdateComponentAsync(updated);
+        return MapToDto(updated);
+    }
+
+    public async Task<ComponentDto> PatchComponentAsync(Guid id, PatchComponentDto dto)
+    {
+        var component = await _repository.GetComponentAsync(id);
+
+        if (!string.IsNullOrWhiteSpace(dto.Name))
+            component.Name = dto.Name;
+
+        if (dto.Description is not null)
+            component.Description = dto.Description;
+
         await _repository.UpdateComponentAsync(component);
+        return MapToDto(component);
     }
 
     public async Task DeleteComponentAsync(Guid id)
@@ -74,33 +73,42 @@ public class GraphService(IGraphRepository repository) : IGraphService
 
     public async Task<Guid> CreateLinkAsync(CreateLinkDto dto)
     {
-        var (sourceId, targetId, severity, protocol) = dto;
         var link = new Link
         {
-            SourceId = sourceId,
-            TargetId = targetId,
-            Severity = severity,
-            Protocol = protocol
+            SourceId = dto.SourceId,
+            TargetId = dto.TargetId,
+            Severity = dto.Severity,
+            Protocol = dto.Protocol
         };
+
         await _repository.AddLinkAsync(link);
         return link.Id;
     }
+
     public async Task<IReadOnlyCollection<LinkDto>> GetLinksBySystemIdAsync(Guid systemId)
     {
         var links = await _repository.GetLinksBySystemIdAsync(systemId);
-        var linkDtos = links.Select(link => new LinkDto() {
+        return links.Select(link => new LinkDto
+        {
             Id = link.Id,
             SourceId = link.SourceId,
             TargetId = link.TargetId,
             Severity = link.Severity,
             Protocol = link.Protocol
         }).ToList();
-
-        return linkDtos;
     }
 
     public async Task DeleteLinkAsync(Guid id)
     {
         await _repository.DeleteLinkAsync(id);
     }
+
+    private static ComponentDto MapToDto(Component c) => new()
+    {
+        Id = c.Id,
+        SystemId = c.SystemId,
+        Type = c.Type,
+        Name = c.Name,
+        Description = c.Description
+    };
 }
