@@ -309,3 +309,5 @@ misc/
 
 # Dotnet secrets
 appsettings*.json
+
+coveragereport/

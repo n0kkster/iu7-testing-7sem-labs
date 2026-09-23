@@ -3,6 +3,7 @@ using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
 using Analyzer.Shared.DTO;
+using Analyzer.Tests.Common.Mothers;
 using Moq;
 using Xunit;
 
@@ -201,6 +202,90 @@ public class TeamServiceTests
         // Act & Assert
         var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => _teamService.GetTeamMembersAsync(teamId));
         Assert.Contains("не существует", ex.Message);
+    }
+
+    #endregion
+
+    #region GetAllTeams Tests
+
+    // Техника тест-дизайна: Классы эквивалентности (непустой список сущностей)
+    [Fact]
+    public async Task GetAllTeamsAsync_TeamsExist_ReturnsMappedTeamDtos()
+    {
+        // Arrange
+        var team1 = TeamMother.CreateEngineeringTeam();
+        var team2 = TeamMother.CreateFrontendTeam();
+        _teamRepoMock.Setup(r => r.GetAllTeamsAsync()).ReturnsAsync([team1, team2]);
+
+        // Act
+        var result = await _teamService.GetAllTeamsAsync();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, t => t.Name == team1.Name);
+        Assert.Contains(result, t => t.Name == team2.Name);
+    }
+
+    // Техника тест-дизайна: Граничные значения (пустая коллекция на границе)
+    [Fact]
+    public async Task GetAllTeamsAsync_NoTeamsInDatabase_ReturnsEmptyCollection()
+    {
+        // Arrange
+        _teamRepoMock.Setup(r => r.GetAllTeamsAsync()).ReturnsAsync([]);
+
+        // Act
+        var result = await _teamService.GetAllTeamsAsync();
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    #endregion
+
+    #region Member Management Negative Tests
+
+    // Техника тест-дизайна: Предугадывание ошибки (попытка добавить участника в несуществующую команду)
+    [Fact]
+    public async Task AddMemberAsync_TeamNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var nonExistentTeamId = Guid.NewGuid();
+        var user = UserMother.CreateDeveloper();
+        _teamRepoMock.Setup(r => r.GetByIdAsync(nonExistentTeamId)).ReturnsAsync((Team?)null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _teamService.AddMemberAsync(nonExistentTeamId, user));
+        Assert.Equal("Команда не найдена", ex.Message);
+    }
+
+    // Техника тест-дизайна: Предугадывание ошибки (попытка удалить участника из несуществующей команды)
+    [Fact]
+    public async Task RemoveMemberAsync_TeamNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var nonExistentTeamId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _teamRepoMock.Setup(r => r.GetByIdAsync(nonExistentTeamId)).ReturnsAsync((Team?)null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _teamService.RemoveMemberAsync(nonExistentTeamId, userId));
+        Assert.Equal("Команда не найдена", ex.Message);
+    }
+
+    // Техника тест-дизайна: Предугадывание ошибки (запрос участников для несуществующей команды)
+    [Fact]
+    public async Task GetTeamMembersAsync_TeamNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var nonExistentTeamId = Guid.NewGuid();
+        _teamRepoMock.Setup(r => r.GetByIdAsync(nonExistentTeamId)).ReturnsAsync((Team?)null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _teamService.GetTeamMembersAsync(nonExistentTeamId));
+        Assert.Equal("Команда не найдена", ex.Message);
     }
 
     #endregion

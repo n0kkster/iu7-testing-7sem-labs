@@ -26,4 +26,21 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+  <PackageReference Include="Allure.Xunit" Version="2.12.1" />
+  <PackageReference Include="coverlet.msbuild" Version="10.0.1">
+    <PrivateAssets>all</PrivateAssets>
+    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+  </PackageReference>
+</ItemGroup>
+
+<ItemGroup>
+  <None Update="allureConfig.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+  <None Update="xunit.runner.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+
 </Project>

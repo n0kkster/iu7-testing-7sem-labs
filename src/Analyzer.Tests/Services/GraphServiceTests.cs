@@ -2,6 +2,7 @@ using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
+using Analyzer.Domain.Exceptions;
 using Analyzer.Shared.DTO;
 using Moq;
 
@@ -217,6 +218,86 @@ public class GraphServiceTests
 
         // Assert
         _graphRepoMock.Verify(r => r.DeleteLinkAsync(linkId), Times.Once);
+    }
+
+    #endregion
+
+    #region Component Negative Tests
+
+    // Техника тест-дизайна: Предугадывание ошибки (запрос несуществующего компонента)
+    [Fact]
+    public async Task GetComponentDetailsAsync_NotFoundInRepository_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var missingId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.GetComponentAsync(missingId))
+            .ThrowsAsync(new KeyNotFoundException($"Объект с GUID {missingId} не найден."));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _graphService.GetComponentDetailsAsync(missingId));
+    }
+
+    // Техника тест-дизайна: Граничные значения / Классы эквивалентности (пустое имя компонента)
+    [Fact]
+    public async Task CreateComponentAsync_EmptyName_ThrowsInvalidComponentPropertyException()
+    {
+        // Arrange
+        var dto = new CreateComponentDto(Guid.NewGuid(), ComponentType.Database, "   ", "Desc");
+
+        // Act & Assert
+        // Доменная сущность Component выбрасывает исключение при установке пустого имени
+        await Assert.ThrowsAsync<InvalidComponentPropertyException>(() => 
+            _graphService.CreateComponentAsync(dto));
+        
+        _graphRepoMock.Verify(r => r.AddComponentAsync(It.IsAny<Component>()), Times.Never);
+    }
+
+    // Техника тест-дизайна: Граничные значения (пустое описание компонента)
+    [Fact]
+    public async Task CreateComponentAsync_EmptyDescription_ThrowsInvalidComponentPropertyException()
+    {
+        // Arrange
+        var dto = new CreateComponentDto(Guid.NewGuid(), ComponentType.Microservice, "Auth", "");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidComponentPropertyException>(() => 
+            _graphService.CreateComponentAsync(dto));
+
+        _graphRepoMock.Verify(r => r.AddComponentAsync(It.IsAny<Component>()), Times.Never);
+    }
+
+    // Техника тест-дизайна: Предугадывание ошибки (сбой базы данных при удалении узла)
+    [Fact]
+    public async Task DeleteComponentAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var componentId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.DeleteComponentAsync(componentId))
+            .ThrowsAsync(new InvalidOperationException("Neo4j connection dropped"));
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+            _graphService.DeleteComponentAsync(componentId));
+        Assert.Contains("connection dropped", ex.Message);
+    }
+
+    #endregion
+
+    #region Link Negative Tests
+
+    // Техника тест-дизайна: Предугадывание ошибки (удаление несуществующей связи)
+    [Fact]
+    public async Task DeleteLinkAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var linkId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.DeleteLinkAsync(linkId))
+            .ThrowsAsync(new KeyNotFoundException("Link not found"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _graphService.DeleteLinkAsync(linkId));
     }
 
     #endregion
