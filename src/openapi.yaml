@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: FaultAnalyzer API
-  description: REST API сервиса предиктивного анализа отказоустойчивости распределенных систем.
+  description: REST API сервиса анализа отказоустойчивости распределенных систем.
   version: 1.0.0
 servers:
   - url: http://localhost:1555
-    description: Локальный сервер разработки
+    description: Локальный сервер
 
 paths:
   # ==========================================
@@ -221,7 +221,7 @@ paths:
     get:
       summary: Получить компоненты системы по системному роуту
       operationId: getComponentsBySystemId
-      tags: [Components]
+      tags: [Systems]
       security:
         - BearerAuth: []
       parameters:
@@ -247,7 +247,7 @@ paths:
     get:
       summary: Получить связи системы по системному роуту
       operationId: getLinksBySystemId
-      tags: [Links]
+      tags: [Systems]
       security:
         - BearerAuth: []
       parameters:
@@ -272,62 +272,6 @@ paths:
   # ==========================================
   # КОМПОНЕНТЫ
   # ==========================================
-  /api/v1/components:
-    get:
-      summary: Получить список компонентов системы
-      operationId: getComponents
-      tags: [Components]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: systemId
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Список компонентов
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ComponentDto'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      summary: Создать компонент
-      operationId: createComponent
-      tags: [Components]
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateComponentDto'
-      responses:
-        '201':
-          description: Компонент создан
-          headers:
-            Location:
-              schema:
-                type: string
-              example: /api/v1/components/9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-        '400':
-          $ref: '#/components/responses/BadRequest'
 
   /api/v1/components/{id}:
     parameters:
@@ -418,31 +362,6 @@ paths:
   # СВЯЗИ
   # ==========================================
   /api/v1/links:
-    get:
-      summary: Получить связи системы
-      operationId: getLinks
-      tags: [Links]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: systemId
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Список связей
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LinkDto'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
     post:
       summary: Создать зависимость между узлами
       operationId: createLink
@@ -492,141 +411,28 @@ paths:
   # ==========================================
   # АНАЛИЗ ОТКАЗОУСТОЙЧИВОСТИ
   # ==========================================
-  /api/v1/analysis/simulate/{failedComponentId}:
-    get:
-      summary: Симуляция каскадного сбоя
-      operationId: simulateFailure
+  /api/v1/analysis:
+    post:
+      summary: Запуск анализа отказоустойчивости
+      operationId: runAnalysis
       tags: [Analysis]
       security:
         - BearerAuth: []
-      parameters:
-        - name: failedComponentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequestDto'
       responses:
         '200':
-          description: Список ID пораженных компонентов
+          description: Результат выполнения анализа
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
-                  format: uuid
-                example: ["9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf", "d41d8cd9-8f00-4b20-4e98-00998ecf8427"]
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/analysis/cycles/{systemId}:
-    get:
-      summary: Поиск циклических зависимостей
-      operationId: detectCycles
-      tags: [Analysis]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: systemId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Найденные циклы
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CycleAnalysisResultDto'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    
-  /api/v1/analysis/decommission/{targetComponentId}:
-    get:
-      summary: Анализ последствий вывода из эксплуатации
-      operationId: planDecommissioning
-      tags: [Analysis]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: targetComponentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Результат оценки вывода
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DecommissioningResultDto'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/analysis/deployment-risk/{targetComponentId}:
-    get:
-      summary: Оценка риска развертывания
-      operationId: assessDeploymentRisk
-      tags: [Analysis]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: targetComponentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Оценка риска релиза
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeploymentRiskResultDto'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/analysis/spof/{systemId}:
-    get:
-      summary: Поиск единых точек отказа (SPOF)
-      operationId: detectSpof
-      tags: [Analysis]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: systemId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: threshold
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 3
-      responses:
-        '200':
-          description: Список критических узлов
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SpofAnalysisResultDto'
+                $ref: '#/components/schemas/AnalysisResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -760,49 +566,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  # ==========================================
-  # ИНВАЙТЫ
-  # ==========================================
-  /api/v1/invites:
-    post:
-      summary: Создать инвайт в команду
-      operationId: generateInvite
-      tags: [Invites]
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GenerateInviteDto'
-      responses:
-        '200':
-          description: Инвайт сгенерирован
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InviteDto'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: Доступно только администратору
-
-  /api/v1/invites/{id}:
+  /api/v1/teams/{teamId}/invites:
     parameters:
-      - name: id
+      - name: teamId
         in: path
         required: true
         schema:
           type: string
           format: uuid
+
     get:
-      summary: Получить инвайты команды
-      description: Параметр {id} здесь обозначает идентификатор команды (TeamId)
+      summary: Получить список инвайтов команды
       operationId: getTeamInvites
-      tags: [Invites]
+      tags: [Teams]
       security:
         - BearerAuth: []
       responses:
@@ -816,15 +592,58 @@ paths:
                   $ref: '#/components/schemas/InviteDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      summary: Создать инвайт для команды
+      operationId: createTeamInvite
+      tags: [Teams]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteDto'
+      responses:
+        '201':
+          description: Инвайт успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/teams/{teamId}/invites/{inviteId}:
+    parameters:
+      - name: teamId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: inviteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
     delete:
-      summary: Отозвать инвайт
-      description: Параметр {id} здесь обозначает идентификатор инвайта
-      operationId: revokeInvite
-      tags: [Invites]
+      summary: Отозвать инвайт команды
+      operationId: revokeTeamInvite
+      tags: [Teams]
       security:
         - BearerAuth: []
       responses:
-        '200':
+        '204':
           description: Инвайт отозван
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -856,48 +675,35 @@ paths:
           description: Доступно только администратору
 
   /api/v1/users/{id}:
-    delete:
-      summary: Удалить пользователя
-      operationId: deleteUser
-      tags: [Users]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Пользователь удален
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
 
-  /api/v1/users/me:
     get:
-      summary: Получить профиль текущего пользователя
-      operationId: getMyProfile
+      summary: Получить данные пользователя по ID
+      operationId: getUserById
       tags: [Users]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Профиль пользователя
+          description: Данные пользователя
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  /api/v1/users/me/profile:
-    put:
-      summary: Обновить данные своего профиля
-      operationId: updateMyProfile
+    patch:
+      summary: Частичное обновление данных пользователя и смена пароля
+      operationId: patchUser
       tags: [Users]
       security:
         - BearerAuth: []
@@ -906,40 +712,39 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateProfileDto'
+              $ref: '#/components/schemas/PatchUserDto'
       responses:
         '200':
-          description: Профиль обновлен
+          description: Пользователь успешно обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  /api/v1/users/me/password:
-    put:
-      summary: Сменить пароль
-      operationId: changeMyPassword
+    delete:
+      summary: Удалить пользователя
+      operationId: deleteUser
       tags: [Users]
       security:
         - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChangePasswordRequest'
       responses:
-        '200':
-          description: Пароль изменен
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '204':
+          description: Пользователь удален
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   # ==========================================
   # АВАТАРЫ
   # ==========================================
-  /api/v1/avatars/upload:
+  /api/v1/avatars:
     post:
       summary: Загрузить аватар
       operationId: uploadAvatar
@@ -1033,7 +838,7 @@ components:
 
   responses:
     BadRequest:
-      description: Некорректные параметры запроса (RFC 7807)
+      description: Некорректные параметры запроса
       content:
         application/problem+json:
           schema:
@@ -1053,22 +858,6 @@ components:
       type: string
       enum: [Microservice, Database, MessageBroker, ExternalAPI, Unknown]
       example: Microservice
-
-    CreateComponentDto:
-      type: object
-      required: [systemId, type, name, description]
-      properties:
-        systemId:
-          type: string
-          format: uuid
-        type:
-          $ref: '#/components/schemas/ComponentType'
-        name:
-          type: string
-          example: PaymentService
-        description:
-          type: string
-          example: Обработка транзакций пользователей
 
     UpdateComponentDto:
       type: object
@@ -1223,36 +1012,6 @@ components:
         protocol:
           $ref: '#/components/schemas/ProtocolType'
 
-    # --- Analysis ---
-    CycleAnalysisResultDto:
-      type: object
-      required: [hasCycles, cycles]
-      properties:
-        hasCycles:
-          type: boolean
-          example: true
-        cycles:
-          type: array
-          items:
-            type: array
-            items:
-              type: string
-              format: uuid
-
-    SpofAnalysisResultDto:
-      type: object
-      required: [hasSpof, criticalNodes]
-      properties:
-        hasSpof:
-          type: boolean
-          example: true
-        criticalNodes:
-          type: object
-          additionalProperties:
-            type: integer
-          example:
-            "9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf": 5
-
     # --- Auth & Errors ---
     RegisterDto:
       type: object
@@ -1289,7 +1048,7 @@ components:
       properties:
         type:
           type: string
-          example: https://tools.ietf.org/html/rfc7807
+          example: https://www.rfc-editor.org/info/rfc7807/
         title:
           type: string
           example: Ошибка валидации данных
@@ -1329,31 +1088,6 @@ components:
         avatarId:
           type: string
           format: uuid
-
-    UpdateProfileDto:
-      type: object
-      required: [username, email]
-      properties:
-        username:
-          type: string
-          example: new_username
-        email:
-          type: string
-          example: new_email@example.com
-        avatarId:
-          type: string
-          format: uuid
-
-    ChangePasswordRequest:
-      type: object
-      required: [oldPassword, newPassword]
-      properties:
-        oldPassword:
-          type: string
-          example: CurrentPass123!
-        newPassword:
-          type: string
-          example: NewSecretPass456!
 
     TeamDto:
       type: object
@@ -1407,22 +1141,6 @@ components:
           type: string
           enum: [Pending, Activated, Revoked, Expired]
 
-    GenerateInviteDto:
-      type: object
-      required: [email, teamId, validForDays, role]
-      properties:
-        email:
-          type: string
-          example: candidate@example.com
-        teamId:
-          type: string
-          format: uuid
-        validForDays:
-          type: integer
-          example: 7
-        role:
-          $ref: '#/components/schemas/Role'
-
     AvatarDto:
       type: object
       required: [id, createdAt, contentType, data]
@@ -1439,22 +1157,6 @@ components:
         data:
           type: string
           format: byte
-
-    DecommissioningResultDto:
-      type: object
-      required: [isSafeToDecommission, impactedComponentIds, recommendation]
-      properties:
-        isSafeToDecommission:
-          type: boolean
-          example: false
-        impactedComponentIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        recommendation:
-          type: string
-          example: Отключение приведет к сбою в 3 связанных компонентах.
 
     DeploymentRiskResultDto:
       type: object
@@ -1473,3 +1175,98 @@ components:
         summary:
           type: string
           example: Высокий риск. Возможно кратковременное снижение производительности.
+
+    AnalysisType:
+      type: string
+      enum: [CascadingFailure, Cycles, Spof, Decommissioning, DeploymentRisk]
+      example: CascadingFailure
+
+    AnalysisRequestDto:
+      type: object
+      required: [type]
+      properties:
+        type:
+          $ref: '#/components/schemas/AnalysisType'
+        systemId:
+          type: string
+          format: uuid
+          description: Обязательно для Cycles и Spof
+          example: b5952d76-e179-4d6d-88b9-e137452d1134
+        componentId:
+          type: string
+          format: uuid
+          description: Обязательно для CascadingFailure, Decommissioning, DeploymentRisk
+          example: 9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf
+        threshold:
+          type: integer
+          default: 3
+          description: Порог для SPOF-анализа
+          example: 3
+
+    AnalysisResponseDto:
+      type: object
+      required: [type]
+      properties:
+        type:
+          $ref: '#/components/schemas/AnalysisType'
+        impactedComponentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: ["9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf"]
+        cycles:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+              format: uuid
+        criticalNodes:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            "9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf": 4
+        deploymentRisk:
+          $ref: '#/components/schemas/DeploymentRiskResultDto'
+        recommendation:
+          type: string
+          example: Компонент можно безопасно отключить.
+
+    CreateInviteDto:
+      type: object
+      required: [email, validForDays, role]
+      properties:
+        email:
+          type: string
+          format: email
+          example: developer@company.com
+        validForDays:
+          type: integer
+          example: 7
+        role:
+          $ref: '#/components/schemas/Role'
+
+    PatchUserDto:
+      type: object
+      properties:
+        username:
+          type: string
+          example: new_username
+        email:
+          type: string
+          format: email
+          example: new_email@company.com
+        avatarId:
+          type: string
+          format: uuid
+        oldPassword:
+          type: string
+          description: Заполняется только при смене пароля
+          example: CurrentPass123!
+        newPassword:
+          type: string
+          minLength: 8
+          description: Заполняется только при смене пароля
+          example: NewSecretPass456!
