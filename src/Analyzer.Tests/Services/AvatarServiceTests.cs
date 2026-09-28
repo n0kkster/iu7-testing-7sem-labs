@@ -188,4 +188,32 @@ public class AvatarServiceTests
     }
 
     #endregion
+
+    [Fact]
+    public async Task UploadNewAvatarAsync_ImageProviderFails_ThrowsException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var stream = new MemoryStream([1, 2, 3]);
+        _imageProviderMock.Setup(p => p.CreateWebpAsync(It.IsAny<Stream>(), It.IsAny<int>(), It.IsAny<int>()))
+            .ThrowsAsync(new ArgumentException("Corrupted image stream"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _avatarService.UploadNewAvatarAsync(userId, stream));
+        _avatarRepoMock.Verify(r => r.AddAsync(It.IsAny<Avatar>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetAvatarHistoryAsync_NoAvatars_ReturnsEmptyList()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        _avatarRepoMock.Setup(r => r.GetHistoryByUserIdAsync(userId)).ReturnsAsync([]);
+
+        // Act
+        var result = await _avatarService.GetAvatarHistoryAsync(userId);
+
+        // Assert
+        Assert.Empty(result);
+    }
 }

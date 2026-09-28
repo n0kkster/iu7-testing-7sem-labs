@@ -2,6 +2,7 @@ using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
+using Analyzer.Domain.Exceptions;
 using Analyzer.Shared.DTO;
 using Moq;
 
@@ -95,7 +96,6 @@ public class GraphServiceTests
         // Assert
         Assert.NotEqual(Guid.Empty, newId);
         
-        // Проверяем, что маппинг в Entity прошел корректно перед сохранением
         _graphRepoMock.Verify(r => r.AddComponentAsync(It.Is<Component>(c => 
             c.SystemId == systemId &&
             c.Type == ComponentType.MessageBroker &&
@@ -197,7 +197,6 @@ public class GraphServiceTests
         // Assert
         Assert.NotEqual(Guid.Empty, newId);
 
-        // Проверяем, что маппинг связи в Entity прошел без потерь
         _graphRepoMock.Verify(r => r.AddLinkAsync(It.Is<Link>(l => 
             l.SourceId == sourceId &&
             l.TargetId == targetId &&
@@ -220,4 +219,109 @@ public class GraphServiceTests
     }
 
     #endregion
+
+    #region Component Negative Tests
+
+    [Fact]
+    public async Task GetComponentDetailsAsync_NotFoundInRepository_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var missingId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.GetComponentAsync(missingId))
+            .ThrowsAsync(new KeyNotFoundException($"Объект с GUID {missingId} не найден."));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _graphService.GetComponentDetailsAsync(missingId));
+    }
+
+    [Fact]
+    public async Task CreateComponentAsync_EmptyName_ThrowsInvalidComponentPropertyException()
+    {
+        // Arrange
+        var dto = new CreateComponentDto(Guid.NewGuid(), ComponentType.Database, "   ", "Desc");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidComponentPropertyException>(() => 
+            _graphService.CreateComponentAsync(dto));
+        
+        _graphRepoMock.Verify(r => r.AddComponentAsync(It.IsAny<Component>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateComponentAsync_EmptyDescription_ThrowsInvalidComponentPropertyException()
+    {
+        // Arrange
+        var dto = new CreateComponentDto(Guid.NewGuid(), ComponentType.Microservice, "Auth", "");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidComponentPropertyException>(() => 
+            _graphService.CreateComponentAsync(dto));
+
+        _graphRepoMock.Verify(r => r.AddComponentAsync(It.IsAny<Component>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteComponentAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var componentId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.DeleteComponentAsync(componentId))
+            .ThrowsAsync(new InvalidOperationException("Neo4j connection dropped"));
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+            _graphService.DeleteComponentAsync(componentId));
+        Assert.Contains("connection dropped", ex.Message);
+    }
+
+    #endregion
+
+    #region Link Negative Tests
+
+    [Fact]
+    public async Task DeleteLinkAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var linkId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.DeleteLinkAsync(linkId))
+            .ThrowsAsync(new KeyNotFoundException("Link not found"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+            _graphService.DeleteLinkAsync(linkId));
+    }
+
+    #endregion
+
+    [Fact]
+    public async Task UpdateComponentAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var dto = new ComponentDto
+        {
+            Id = Guid.NewGuid(),
+            SystemId = Guid.NewGuid(),
+            Type = ComponentType.Microservice,
+            Name = "Auth",
+            Description = "Auth Service"
+        };
+        _graphRepoMock.Setup(r => r.UpdateComponentAsync(It.IsAny<Component>()))
+            .ThrowsAsync(new InvalidOperationException("DB Write Failure"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _graphService.UpdateComponentAsync(dto));
+    }
+
+    [Fact]
+    public async Task CreateLinkAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var dto = new CreateLinkDto(Guid.NewGuid(), Guid.NewGuid(), LinkSeverity.High, ProtocolType.REST);
+        _graphRepoMock.Setup(r => r.AddLinkAsync(It.IsAny<Link>()))
+            .ThrowsAsync(new InvalidOperationException("Cannot connect nodes"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _graphService.CreateLinkAsync(dto));
+    }
 }
