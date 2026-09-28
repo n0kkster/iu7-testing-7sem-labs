@@ -12,9 +12,6 @@ public class SchoolsComparisonTests
 {
     #region Создание команды
 
-    // ЛОНДОНСКАЯ ШКОЛА:
-    // Тестируемый сервис полностью изолирован. Репозиторий подменен моком.
-    // Проверяем факт вызова метода AddAsync с нужными параметрами через Verify.
     [Fact]
     public async Task CreateTeam_LondonSchool_VerifiesInteractionWithRepository()
     {
@@ -41,16 +38,12 @@ public class SchoolsComparisonTests
         Assert.NotNull(result);
         Assert.Equal(dto.Name, result.Name);
 
-        // Ключевое отличие: проверяем контракт взаимодействия с зависимостью
         teamRepoMock.Verify(r => r.AddAsync(It.Is<Team>(t => 
             t.Name == dto.Name && 
             t.Description == dto.Description)), 
             Times.Once);
     }
 
-    // КЛАССИЧЕСКАЯ ШКОЛА:
-    // Вместо мока используется Fake-хранилище (InMemoryTeamRepository).
-    // Нас не интересует, какие внутренние методы вызывались — проверяем только итоговое состояние хранилища.
     [Fact]
     public async Task CreateTeam_ClassicalSchool_VerifiesResultingStateInStorage()
     {
@@ -73,7 +66,6 @@ public class SchoolsComparisonTests
         // Assert
         Assert.NotNull(result);
 
-        // Ключевое отличие: запрашиваем состояние репозитория напрямую
         var savedTeam = await fakeTeamRepo.GetByIdAsync(result.Id);
         Assert.NotNull(savedTeam);
         Assert.Equal("Platform Team", savedTeam.Name);
@@ -83,8 +75,6 @@ public class SchoolsComparisonTests
 
     #region Сценарий 2: Удаление команды без систем (DeleteTeamAsync)
 
-    // ЛОНДОНСКАЯ ШКОЛА:
-    // Проверяем, что при пустом списке систем был вызван DeleteAsync именно с переданным Id.
     [Fact]
     public async Task DeleteTeam_LondonSchool_VerifiesDeleteCallWhenNoSystemsOwned()
     {
@@ -108,8 +98,6 @@ public class SchoolsComparisonTests
         teamRepoMock.Verify(r => r.DeleteAsync(teamId), Times.Once);
     }
 
-    // КЛАССИЧЕСКАЯ ШКОЛА:
-    // Заранее наполняем Fake реальным объектом и проверяем, что после удаления объект исчез из коллекции.
     [Fact]
     public async Task DeleteTeam_ClassicalSchool_VerifiesItemIsRemovedFromStorage()
     {

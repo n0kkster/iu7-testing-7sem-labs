@@ -2,5 +2,8 @@
   "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
   "parallelAlgorithm": "conservative",
   "seed": 1337,
-  "stopOnFail": false
+  "stopOnFail": false,
+  "parallelizeAssembly": false,
+  "parallelizeTestCollections": true,
+  "maxParallelThreads": 8
 }

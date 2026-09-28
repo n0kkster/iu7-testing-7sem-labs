@@ -208,7 +208,6 @@ public class TeamServiceTests
 
     #region GetAllTeams Tests
 
-    // Техника тест-дизайна: Классы эквивалентности (непустой список сущностей)
     [Fact]
     public async Task GetAllTeamsAsync_TeamsExist_ReturnsMappedTeamDtos()
     {
@@ -226,7 +225,6 @@ public class TeamServiceTests
         Assert.Contains(result, t => t.Name == team2.Name);
     }
 
-    // Техника тест-дизайна: Граничные значения (пустая коллекция на границе)
     [Fact]
     public async Task GetAllTeamsAsync_NoTeamsInDatabase_ReturnsEmptyCollection()
     {
@@ -244,7 +242,6 @@ public class TeamServiceTests
 
     #region Member Management Negative Tests
 
-    // Техника тест-дизайна: Предугадывание ошибки (попытка добавить участника в несуществующую команду)
     [Fact]
     public async Task AddMemberAsync_TeamNotFound_ThrowsKeyNotFoundException()
     {
@@ -259,7 +256,6 @@ public class TeamServiceTests
         Assert.Equal("Команда не найдена", ex.Message);
     }
 
-    // Техника тест-дизайна: Предугадывание ошибки (попытка удалить участника из несуществующей команды)
     [Fact]
     public async Task RemoveMemberAsync_TeamNotFound_ThrowsKeyNotFoundException()
     {
@@ -274,7 +270,6 @@ public class TeamServiceTests
         Assert.Equal("Команда не найдена", ex.Message);
     }
 
-    // Техника тест-дизайна: Предугадывание ошибки (запрос участников для несуществующей команды)
     [Fact]
     public async Task GetTeamMembersAsync_TeamNotFound_ThrowsKeyNotFoundException()
     {

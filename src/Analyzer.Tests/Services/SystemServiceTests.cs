@@ -108,11 +108,9 @@ public class SystemServiceTests
         await _systemService.DeleteSystemAsync(systemId);
 
         // Assert
-        // Проверяем, что GraphService.DeleteComponentAsync был вызван для КАЖДОГО компонента
         _graphServiceMock.Verify(s => s.DeleteComponentAsync(comp1.Id), Times.Once);
         _graphServiceMock.Verify(s => s.DeleteComponentAsync(comp2.Id), Times.Once);
 
-        // Проверяем, что сама система тоже была удалена
         _systemsRepoMock.Verify(r => r.DeleteAsync(systemId), Times.Once);
     }
 
@@ -190,4 +188,28 @@ public class SystemServiceTests
     }
 
     #endregion
+
+    [Fact]
+    public async Task CreateSystemAsync_EmptyName_ThrowsArgumentException()
+    {
+        // Arrange
+        var dto = new CreateITSystemDto { Name = "   ", Description = "Desc", TeamId = Guid.NewGuid() };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _systemService.CreateSystemAsync(dto));
+        _systemsRepoMock.Verify(r => r.AddAsync(It.IsAny<ITSystem>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteSystemAsync_GraphServiceFails_PropagatesException()
+    {
+        // Arrange
+        var systemId = Guid.NewGuid();
+        _graphServiceMock.Setup(g => g.GetComponentsBySystemIdAsync(systemId))
+            .ThrowsAsync(new InvalidOperationException("Graph timeout"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _systemService.DeleteSystemAsync(systemId));
+        _systemsRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Guid>()), Times.Never);
+    }
 }

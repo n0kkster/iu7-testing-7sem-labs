@@ -96,7 +96,6 @@ public class GraphServiceTests
         // Assert
         Assert.NotEqual(Guid.Empty, newId);
         
-        // Проверяем, что маппинг в Entity прошел корректно перед сохранением
         _graphRepoMock.Verify(r => r.AddComponentAsync(It.Is<Component>(c => 
             c.SystemId == systemId &&
             c.Type == ComponentType.MessageBroker &&
@@ -198,7 +197,6 @@ public class GraphServiceTests
         // Assert
         Assert.NotEqual(Guid.Empty, newId);
 
-        // Проверяем, что маппинг связи в Entity прошел без потерь
         _graphRepoMock.Verify(r => r.AddLinkAsync(It.Is<Link>(l => 
             l.SourceId == sourceId &&
             l.TargetId == targetId &&
@@ -224,7 +222,6 @@ public class GraphServiceTests
 
     #region Component Negative Tests
 
-    // Техника тест-дизайна: Предугадывание ошибки (запрос несуществующего компонента)
     [Fact]
     public async Task GetComponentDetailsAsync_NotFoundInRepository_ThrowsKeyNotFoundException()
     {
@@ -238,7 +235,6 @@ public class GraphServiceTests
             _graphService.GetComponentDetailsAsync(missingId));
     }
 
-    // Техника тест-дизайна: Граничные значения / Классы эквивалентности (пустое имя компонента)
     [Fact]
     public async Task CreateComponentAsync_EmptyName_ThrowsInvalidComponentPropertyException()
     {
@@ -246,14 +242,12 @@ public class GraphServiceTests
         var dto = new CreateComponentDto(Guid.NewGuid(), ComponentType.Database, "   ", "Desc");
 
         // Act & Assert
-        // Доменная сущность Component выбрасывает исключение при установке пустого имени
         await Assert.ThrowsAsync<InvalidComponentPropertyException>(() => 
             _graphService.CreateComponentAsync(dto));
         
         _graphRepoMock.Verify(r => r.AddComponentAsync(It.IsAny<Component>()), Times.Never);
     }
 
-    // Техника тест-дизайна: Граничные значения (пустое описание компонента)
     [Fact]
     public async Task CreateComponentAsync_EmptyDescription_ThrowsInvalidComponentPropertyException()
     {
@@ -267,7 +261,6 @@ public class GraphServiceTests
         _graphRepoMock.Verify(r => r.AddComponentAsync(It.IsAny<Component>()), Times.Never);
     }
 
-    // Техника тест-дизайна: Предугадывание ошибки (сбой базы данных при удалении узла)
     [Fact]
     public async Task DeleteComponentAsync_RepositoryFails_PropagatesException()
     {
@@ -286,7 +279,6 @@ public class GraphServiceTests
 
     #region Link Negative Tests
 
-    // Техника тест-дизайна: Предугадывание ошибки (удаление несуществующей связи)
     [Fact]
     public async Task DeleteLinkAsync_RepositoryFails_PropagatesException()
     {
@@ -301,4 +293,35 @@ public class GraphServiceTests
     }
 
     #endregion
+
+    [Fact]
+    public async Task UpdateComponentAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var dto = new ComponentDto
+        {
+            Id = Guid.NewGuid(),
+            SystemId = Guid.NewGuid(),
+            Type = ComponentType.Microservice,
+            Name = "Auth",
+            Description = "Auth Service"
+        };
+        _graphRepoMock.Setup(r => r.UpdateComponentAsync(It.IsAny<Component>()))
+            .ThrowsAsync(new InvalidOperationException("DB Write Failure"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _graphService.UpdateComponentAsync(dto));
+    }
+
+    [Fact]
+    public async Task CreateLinkAsync_RepositoryFails_PropagatesException()
+    {
+        // Arrange
+        var dto = new CreateLinkDto(Guid.NewGuid(), Guid.NewGuid(), LinkSeverity.High, ProtocolType.REST);
+        _graphRepoMock.Setup(r => r.AddLinkAsync(It.IsAny<Link>()))
+            .ThrowsAsync(new InvalidOperationException("Cannot connect nodes"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _graphService.CreateLinkAsync(dto));
+    }
 }

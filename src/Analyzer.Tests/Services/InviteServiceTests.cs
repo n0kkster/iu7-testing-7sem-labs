@@ -150,4 +150,46 @@ public class InviteServiceTests
     }
 
     #endregion
+
+    [Fact]
+    public async Task RevokeInviteAsync_InviteNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var missingId = Guid.NewGuid();
+        _inviteRepoMock.Setup(r => r.GetByIdAsync(missingId)).ReturnsAsync((Invite?)null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _inviteService.RevokeInviteAsync(missingId));
+        _inviteRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Invite>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetTeamInvitesAsync_HasInvites_ReturnsMappedDtos()
+    {
+        // Arrange
+        var teamId = Guid.NewGuid();
+        var invite = new Invite("target@test.com", 7, teamId, Role.Developer);
+        _inviteRepoMock.Setup(r => r.GetByTeamIdAsync(teamId)).ReturnsAsync([invite]);
+
+        // Act
+        var result = await _inviteService.GetTeamInvitesAsync(teamId);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(invite.TargetEmail, result.First().TargetEmail);
+    }
+
+    [Fact]
+    public async Task GetTeamInvitesAsync_NoInvites_ReturnsEmptyCollection()
+    {
+        // Arrange
+        var teamId = Guid.NewGuid();
+        _inviteRepoMock.Setup(r => r.GetByTeamIdAsync(teamId)).ReturnsAsync([]);
+
+        // Act
+        var result = await _inviteService.GetTeamInvitesAsync(teamId);
+
+        // Assert
+        Assert.Empty(result);
+    }
 }

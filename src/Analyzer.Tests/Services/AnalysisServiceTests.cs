@@ -324,4 +324,17 @@ public class AnalysisServiceTests
     }
 
     #endregion
+
+    [Fact]
+    public async Task DetectCyclesAsync_RepositoryThrows_PropagatesException()
+    {
+        // Arrange
+        var systemId = Guid.NewGuid();
+        _graphRepoMock.Setup(r => r.GetCyclicDependenciesAsync(systemId))
+            .ThrowsAsync(new InvalidOperationException("Neo4j connection timeout"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => 
+            _analysisService.DetectCyclesAsync(systemId));
+    }
 }

@@ -240,4 +240,106 @@ public class UserServiceTests
     }
 
     #endregion
+
+    #region Profile, All Users, Delete
+
+    [Fact]
+    public async Task GetProfileAsync_UserExists_ReturnsUserDto()
+    {
+        // Arrange
+        var user = User.CreateAdmin("profile_user", "profile@test.com", "hash");
+        _userRepoMock.Setup(r => r.GetByIdAsync(user.Id)).ReturnsAsync(user);
+
+        // Act
+        var result = await _userService.GetProfileAsync(user.Id);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(user.Username, result.Username);
+        Assert.Equal(user.Email, result.Email);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_UserNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var missingId = Guid.NewGuid();
+        _userRepoMock.Setup(r => r.GetByIdAsync(missingId)).ReturnsAsync((User?)null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _userService.GetProfileAsync(missingId));
+    }
+
+    [Fact]
+    public async Task GetAllUsersAsync_UsersExist_ReturnsUserDtoList()
+    {
+        // Arrange
+        var user1 = User.CreateAdmin("admin1", "a1@test.com", "hash");
+        var user2 = User.CreateAdmin("admin2", "a2@test.com", "hash");
+        _userRepoMock.Setup(r => r.GetAllUsersAsync()).ReturnsAsync([user1, user2]);
+
+        // Act
+        var result = await _userService.GetAllUsersAsync();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task GetAllUsersAsync_NoUsers_ReturnsEmptyList()
+    {
+        // Arrange
+        _userRepoMock.Setup(r => r.GetAllUsersAsync()).ReturnsAsync([]);
+
+        // Act
+        var result = await _userService.GetAllUsersAsync();
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task UpdateProfileAsync_EmailAlreadyTaken_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var user = User.CreateAdmin("user1", "old@test.com", "hash");
+        _userRepoMock.Setup(r => r.GetByIdAsync(user.Id)).ReturnsAsync(user);
+        _userRepoMock.Setup(r => r.ExistsByUsernameAsync("user1")).ReturnsAsync(false);
+        _userRepoMock.Setup(r => r.ExistsByEmailAsync("taken@test.com")).ReturnsAsync(true);
+
+        var dto = new UpdateProfileDto { Username = "user1", Email = "taken@test.com" };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+            _userService.UpdateProfileAsync(user.Id, dto));
+        Assert.Contains("почта уже используется", ex.Message);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_UserExists_DeletesFromRepository()
+    {
+        // Arrange
+        var user = User.CreateAdmin("to_delete", "del@test.com", "hash");
+        _userRepoMock.Setup(r => r.GetByIdAsync(user.Id)).ReturnsAsync(user);
+
+        // Act
+        await _userService.DeleteAsync(user.Id);
+
+        // Assert
+        _userRepoMock.Verify(r => r.DeleteAsync(user.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_UserNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var missingId = Guid.NewGuid();
+        _userRepoMock.Setup(r => r.GetByIdAsync(missingId)).ReturnsAsync((User?)null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _userService.DeleteAsync(missingId));
+        _userRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    #endregion
 }
