@@ -173,12 +173,28 @@ try
     {
         options.SwaggerDoc("v1", new OpenApiInfo
         {
-            Title = "FaultAnalyzer API",
+            Title = "FaultAnalyzer API V1",
             Version = "v1",
-            Description = "API для анализа отказоустойчивости систем на базе микросервисной архитектуры"
+            Description = "Первая версия API"
         });
 
-        options.CustomSchemaIds(type => type.FullName);
+        options.SwaggerDoc("v2", new OpenApiInfo
+        {
+            Title = "FaultAnalyzer API V2",
+            Version = "v2",
+            Description = "Вторая версия REST API"
+        });
+
+        options.DocInclusionPredicate((docName, apiDesc) =>
+        {
+            var path = apiDesc.RelativePath;
+            if (string.IsNullOrEmpty(path))
+                return false;
+
+            return path.StartsWith($"api/{docName}", StringComparison.OrdinalIgnoreCase);
+        });
+
+        options.CustomSchemaIds(type => type.FullName?.Replace('+', '.'));
 
         options.AddSecurityDefinition("OAuth2", new OpenApiSecurityScheme
         {
@@ -222,6 +238,7 @@ try
         app.UseSwaggerUI(options =>
         {
             options.SwaggerEndpoint("/swagger/v1/swagger.json", "FaultAnalyzer API v1");
+            options.SwaggerEndpoint("/swagger/v2/swagger.json", "FaultAnalyzer API v2");
             options.RoutePrefix = string.Empty;
         });
     }

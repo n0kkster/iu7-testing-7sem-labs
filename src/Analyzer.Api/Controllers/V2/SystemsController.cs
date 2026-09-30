@@ -153,7 +153,7 @@ public class SystemsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> ImportSystem([FromForm] IFormFile file, [FromForm] string importData)
+    public async Task<IActionResult> ImportSystem(IFormFile file, [FromForm] string importData)
     {
         if (file is null || file.Length == 0)
         {
