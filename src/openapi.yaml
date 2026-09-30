@@ -11,7 +11,7 @@ paths:
   # ==========================================
   # СИСТЕМЫ
   # ==========================================
-  /api/v1/systems:
+  /api/v2/systems:
     get:
       summary: Получить список систем команды
       operationId: getSystemsByTeam
@@ -58,7 +58,7 @@ paths:
               schema:
                 type: string
               description: Ссылка на созданный ресурс
-              example: /api/v1/systems/b5952d76-e179-4d6d-88b9-e137452d1134
+              example: /api/v2/systems/b5952d76-e179-4d6d-88b9-e137452d1134
           content:
             application/json:
               schema:
@@ -72,7 +72,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/systems/{id}:
+  /api/v2/systems/{id}:
     parameters:
       - name: id
         in: path
@@ -154,7 +154,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/systems/{id}/export:
+  /api/v2/systems/{id}/export:
     get:
       summary: Экспорт топологии системы
       operationId: exportSystem
@@ -188,7 +188,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/systems/import:
+  /api/v2/systems/import:
     post:
       summary: Импорт топологии системы
       operationId: importSystem
@@ -217,7 +217,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/systems/{systemId}/components:
+  /api/v2/systems/{systemId}/components:
     get:
       summary: Получить компоненты системы по системному роуту
       operationId: getComponentsBySystemId
@@ -243,7 +243,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/systems/{systemId}/links:
+  /api/v2/systems/{systemId}/links:
     get:
       summary: Получить связи системы по системному роуту
       operationId: getLinksBySystemId
@@ -273,7 +273,43 @@ paths:
   # КОМПОНЕНТЫ
   # ==========================================
 
-  /api/v1/components/{id}:
+  /api/v2/components:
+    post:
+      summary: Создать компонент
+      operationId: createComponent
+      tags: [Components]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComponentDto'
+      responses:
+        '201':
+          description: Компонент создан
+          headers:
+            Location:
+              schema:
+                type: string
+              example: /api/v2/components/9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Действие разрешено только архитектору
+
+  /api/v2/components/{id}:
     parameters:
       - name: id
         in: path
@@ -361,7 +397,7 @@ paths:
   # ==========================================
   # СВЯЗИ
   # ==========================================
-  /api/v1/links:
+  /api/v2/links:
     post:
       summary: Создать зависимость между узлами
       operationId: createLink
@@ -388,7 +424,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/links/{id}:
+  /api/v2/links/{id}:
     delete:
       summary: Удалить связь
       operationId: deleteLink
@@ -411,7 +447,7 @@ paths:
   # ==========================================
   # АНАЛИЗ ОТКАЗОУСТОЙЧИВОСТИ
   # ==========================================
-  /api/v1/analysis:
+  /api/v2/analysis:
     post:
       summary: Запуск анализа отказоустойчивости
       operationId: runAnalysis
@@ -441,7 +477,7 @@ paths:
   # ==========================================
   # ПОЛЬЗОВАТЕЛИ И АУТЕНТИФИКАЦИЯ
   # ==========================================
-  /api/v1/users/register:
+  /api/v2/users/register:
     post:
       summary: Регистрация по инвайт-коду
       operationId: registerUser
@@ -464,7 +500,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/users/login:
+  /api/v2/users/login:
     post:
       summary: Аутентификация пользователя
       operationId: loginUser
@@ -494,7 +530,7 @@ paths:
   # ==========================================
   # КОМАНДЫ
   # ==========================================
-  /api/v1/teams:
+  /api/v2/teams:
     get:
       summary: Получить список всех команд
       operationId: getAllTeams
@@ -540,7 +576,7 @@ paths:
         '403':
           description: Доступно только администратору
 
-  /api/v1/teams/{id}:
+  /api/v2/teams/{id}:
     delete:
       summary: Удалить команду
       operationId: deleteTeam
@@ -566,7 +602,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/teams/{teamId}/invites:
+  /api/v2/teams/{teamId}/invites:
     parameters:
       - name: teamId
         in: path
@@ -621,7 +657,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/teams/{teamId}/invites/{inviteId}:
+  /api/v2/teams/{teamId}/invites/{inviteId}:
     parameters:
       - name: teamId
         in: path
@@ -653,7 +689,7 @@ paths:
   # ==========================================
   # ПРОФИЛЬ И ПОЛЬЗОВАТЕЛИ
   # ==========================================
-  /api/v1/users:
+  /api/v2/users:
     get:
       summary: Получить всех пользователей системы
       operationId: getAllUsers
@@ -674,7 +710,7 @@ paths:
         '403':
           description: Доступно только администратору
 
-  /api/v1/users/{id}:
+  /api/v2/users/{id}:
     parameters:
       - name: id
         in: path
@@ -744,7 +780,7 @@ paths:
   # ==========================================
   # АВАТАРЫ
   # ==========================================
-  /api/v1/avatars:
+  /api/v2/avatars:
     post:
       summary: Загрузить аватар
       operationId: uploadAvatar
@@ -770,7 +806,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/avatars/history:
+  /api/v2/avatars/history:
     get:
       summary: Получить историю аватаров текущего пользователя
       operationId: getAvatarHistory
@@ -789,7 +825,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/avatars/{id}:
+  /api/v2/avatars/{id}:
     parameters:
       - name: id
         in: path
@@ -892,6 +928,23 @@ components:
           type: string
           format: uuid
           example: 9a37e1b5-310e-43f1-bfa6-a36c1e55ecbf
+        systemId:
+          type: string
+          format: uuid
+          example: b5952d76-e179-4d6d-88b9-e137452d1134
+        type:
+          $ref: '#/components/schemas/ComponentType'
+        name:
+          type: string
+          example: PaymentService
+        description:
+          type: string
+          example: Обработка транзакций
+
+    CreateComponentDto:
+      type: object
+      required: [systemId, type, name, description]
+      properties:
         systemId:
           type: string
           format: uuid
@@ -1060,7 +1113,7 @@ components:
           example: Имя компонента не может быть пустой строкой
         instance:
           type: string
-          example: /api/v1/components
+          example: /api/v2/components
     
     Role:
       type: string
