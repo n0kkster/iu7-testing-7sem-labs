@@ -1,9 +1,7 @@
 @namespace Analyzer.Client.Components.Panels
 
 @using Analyzer.Client.Models
-@using Analyzer.Shared.DTO
-@using System.Runtime.InteropServices
-@using System.Net.WebSockets
+@using Analyzer.Shared.DTO.Common
 @inject HttpClient Http
 
 <MudDrawer @bind-Open="IsOpen" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary" Width="400px"

@@ -1,7 +1,7 @@
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Enums;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.V1;
 using Moq;
 
 namespace Analyzer.Tests.Services;

@@ -1,5 +1,4 @@
-@using Analyzer.Shared.DTO
-@using System.Security.Claims
+@using Analyzer.Shared.DTO.Common
 
 @inherits LayoutComponentBase
 @inject NavigationManager NavManager
@@ -87,7 +86,6 @@
 
 @code 
 {
-    private bool _drawerOpen = true;
     private bool _isDarkMode = false;
 
     private bool _isThemeTransitioning = false;

@@ -2,7 +2,7 @@ using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Analyzer.Tests.Common.Mothers;
 using Moq;
 using Xunit;

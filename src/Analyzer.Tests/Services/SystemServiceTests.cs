@@ -3,7 +3,7 @@ using Analyzer.Application.Interfaces.Services;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Moq;
 
 namespace Analyzer.Tests.Services;
@@ -72,10 +72,10 @@ public class SystemServiceTests
         var system = new ITSystem("Old Name", "Old Desc", Guid.NewGuid());
         _systemsRepoMock.Setup(r => r.GetByIdAsync(systemId)).ReturnsAsync(system);
 
-        var dto = new ITSystemDto(systemId, "New Name", "New Desc", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Guid.NewGuid(), 0);
+        var dto = new UpdateITSystemDto("New Name", "New Desc");
 
         // Act
-        await _systemService.UpdateSystemAsync(dto);
+        await _systemService.UpdateSystemAsync(systemId, dto);
 
         // Assert
         Assert.Equal("New Name", system.Name);
@@ -86,11 +86,12 @@ public class SystemServiceTests
     public async Task UpdateSystemAsync_SystemNotFound_ThrowsKeyNotFoundException()
     {
         // Arrange
+        var systemId = Guid.NewGuid();
         _systemsRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((ITSystem?)null);
-        var dto = new ITSystemDto(Guid.NewGuid(), "Name", "Desc", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Guid.NewGuid(), 0);
+        var dto = new UpdateITSystemDto("Name", "Desc");
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => _systemService.UpdateSystemAsync(dto));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _systemService.UpdateSystemAsync(systemId, dto));
     }
 
     [Fact]

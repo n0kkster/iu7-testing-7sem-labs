@@ -2,7 +2,7 @@ using Analyzer.Application.Interfaces.Providers;
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Moq;
 
 namespace Analyzer.Tests.Services;

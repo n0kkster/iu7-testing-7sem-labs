@@ -1,5 +1,5 @@
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 
 namespace Analyzer.Application.Interfaces.Services;
 

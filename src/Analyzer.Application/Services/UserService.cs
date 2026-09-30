@@ -1,7 +1,7 @@
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Analyzer.Application.Interfaces.Providers;
 
 namespace Analyzer.Application.Services;
@@ -116,6 +116,55 @@ public class UserService(
     {
         await GetUserOrThrowAsync(userId);
         await _userRepository.DeleteAsync(userId);
+    }
+
+    public async Task<UserDto> PatchUserAsync(Guid userId, PatchUserDto dto)
+    {
+        var user = await GetUserOrThrowAsync(userId);
+
+        var newUsername = string.IsNullOrWhiteSpace(dto.Username) ? user.Username : dto.Username;
+        var newEmail = string.IsNullOrWhiteSpace(dto.Email) ? user.Email : dto.Email;
+        var newAvatarId = dto.AvatarId ?? user.AvatarId;
+
+        if (!string.Equals(user.Username, newUsername, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await _userRepository.ExistsByUsernameAsync(newUsername))
+                throw new InvalidOperationException("Это имя пользователя уже используется другим пользователем.");
+        }
+
+        if (!string.Equals(user.Email, newEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await _userRepository.ExistsByEmailAsync(newEmail))
+                throw new InvalidOperationException("Данная почта уже используется другим пользователем.");
+        }
+
+        if (dto.AvatarId is not null && dto.AvatarId != user.AvatarId)
+        {
+            var avatar = await _avatarRepository.GetByIdAsync(dto.AvatarId.Value);
+            if (avatar is null || avatar.UserId != userId)
+                throw new KeyNotFoundException("Данный аватар не найден.");
+        }
+
+        user.UpdateProfile(newUsername, newEmail, newAvatarId);
+
+        if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+        {
+            if (string.IsNullOrWhiteSpace(dto.OldPassword))
+                throw new ArgumentException("Для смены пароля необходимо указать старый пароль.");
+
+            if (!BCrypt.Net.BCrypt.EnhancedVerify(dto.OldPassword, user.PasswordHash))
+                throw new InvalidOperationException("Текущий пароль указан неверно.");
+
+            if (dto.NewPassword.Length < 8)
+                throw new ArgumentException("Пароль должен содержать не менее 8 символов.");
+
+            string newHash = BCrypt.Net.BCrypt.EnhancedHashPassword(dto.NewPassword);
+            user.ChangePassword(newHash);
+        }
+
+        await _userRepository.UpdateAsync(user);
+
+        return MapToDto(user);
     }
 
     private UserDto MapToDto(User user)

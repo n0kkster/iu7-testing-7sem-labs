@@ -1,6 +1,6 @@
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using MongoDB.Driver;
 
 namespace Analyzer.Infrastructure.Persistence.Mongo;

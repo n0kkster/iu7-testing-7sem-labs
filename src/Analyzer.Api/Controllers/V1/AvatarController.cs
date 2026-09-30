@@ -1,10 +1,10 @@
+namespace Analyzer.Api.Controllers.V1;
+
 using System.Security.Claims;
 using Analyzer.Application.Interfaces.Services;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-namespace Analyzer.Api.Controllers;
 
 [Authorize]
 [ApiController]

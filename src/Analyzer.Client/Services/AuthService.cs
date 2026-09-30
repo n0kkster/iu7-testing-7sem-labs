@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Analyzer.Client.Utils;
 using Serilog;
 

@@ -2,7 +2,7 @@ namespace Analyzer.Application.Interfaces.Repositories;
 
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.V1;
 
 public interface IGraphRepository
 {

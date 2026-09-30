@@ -1,4 +1,4 @@
-namespace Analyzer.Shared.DTO;
+namespace Analyzer.Shared.DTO.V1;
 
 using Analyzer.Domain.Enums;
 

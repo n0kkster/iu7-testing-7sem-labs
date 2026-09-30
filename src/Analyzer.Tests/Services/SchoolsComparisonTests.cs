@@ -3,7 +3,7 @@ namespace Analyzer.Tests.Services;
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Analyzer.Tests.Common.Fakes;
 using Analyzer.Tests.Common.Mothers;
 using Moq;

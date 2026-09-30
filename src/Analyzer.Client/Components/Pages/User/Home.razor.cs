@@ -10,7 +10,8 @@ using Blazor.Diagrams.Options;
 using MudBlazor;
 using Serilog;
 
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
+using Analyzer.Shared.DTO.V1;
 using Analyzer.Domain.Enums;
 using Analyzer.Client.Models;
 using Analyzer.Client.Components.Dialogs;

@@ -1,7 +1,7 @@
-namespace Analyzer.Api.Controllers;
+namespace Analyzer.Api.Controllers.V1;
 
 using Analyzer.Application.Interfaces.Services;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

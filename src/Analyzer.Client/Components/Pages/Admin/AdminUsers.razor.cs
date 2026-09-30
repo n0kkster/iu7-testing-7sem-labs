@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using Serilog;
 
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Analyzer.Domain.Enums;
 
 namespace Analyzer.Client.Components.Pages.Admin;

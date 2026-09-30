@@ -4,7 +4,7 @@ using System.Diagnostics;
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.V1;
 using Analyzer.Infrastructure.Queries;
 using Neo4j.Driver;
 using Serilog;

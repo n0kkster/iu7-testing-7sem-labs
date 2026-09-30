@@ -1,4 +1,4 @@
-namespace Analyzer.Shared.DTO;
+namespace Analyzer.Shared.DTO.Common;
 
 public record ITSystemDto(
     Guid Id,

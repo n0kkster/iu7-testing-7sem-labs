@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 
 namespace Analyzer.Client.Services;
 

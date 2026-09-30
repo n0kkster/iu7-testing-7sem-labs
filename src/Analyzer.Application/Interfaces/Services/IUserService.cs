@@ -1,4 +1,4 @@
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 
 namespace Analyzer.Application.Interfaces.Services;
 
@@ -13,4 +13,5 @@ public interface IUserService
     Task ChangePasswordAsync(Guid userId, string oldPassword, string newPassword);
     Task DeleteAsync(Guid userId);
 
+    Task<UserDto> PatchUserAsync(Guid userId, PatchUserDto dto);
 }

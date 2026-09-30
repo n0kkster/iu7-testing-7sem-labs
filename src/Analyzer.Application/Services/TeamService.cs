@@ -1,7 +1,7 @@
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 
 namespace Analyzer.Application.Services;
 

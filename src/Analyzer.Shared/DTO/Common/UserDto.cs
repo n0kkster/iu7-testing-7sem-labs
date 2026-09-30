@@ -1,6 +1,6 @@
-using Analyzer.Domain.Enums;
+namespace Analyzer.Shared.DTO.Common;
 
-namespace Analyzer.Shared.DTO;
+using Analyzer.Domain.Enums;
 
 public class UserDto
 {
@@ -32,3 +32,11 @@ public class UpdateProfileDto
     public string Email { get; set; } = string.Empty;
     public Guid? AvatarId { get; set; } = null;
 }
+
+public record PatchUserDto(
+    string? Username = null,
+    string? Email = null,
+    Guid? AvatarId = null,
+    string? OldPassword = null,
+    string? NewPassword = null
+);

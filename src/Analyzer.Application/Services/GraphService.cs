@@ -2,7 +2,7 @@ namespace Analyzer.Application.Services;
 
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Application.Interfaces.Repositories;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Analyzer.Domain.Entities;
 
 public class GraphService(IGraphRepository repository) : IGraphService
@@ -37,11 +37,12 @@ public class GraphService(IGraphRepository repository) : IGraphService
 
     public async Task<ComponentDto> UpdateComponentAsync(Guid id, UpdateComponentDto dto)
     {
-        var existing = await _repository.GetComponentAsync(id);
+        var existing = await _repository.GetComponentAsync(id)
+            ?? throw new KeyNotFoundException($"Компонент с ID {id} не найден.");
 
         var updated = new Component
         {
-            Id = id,
+            Id = existing.Id,
             SystemId = existing.SystemId,
             Type = dto.Type,
             Name = dto.Name,
@@ -54,16 +55,20 @@ public class GraphService(IGraphRepository repository) : IGraphService
 
     public async Task<ComponentDto> PatchComponentAsync(Guid id, PatchComponentDto dto)
     {
-        var component = await _repository.GetComponentAsync(id);
+        var existing = await _repository.GetComponentAsync(id)
+            ?? throw new KeyNotFoundException($"Компонент с ID {id} не найден.");
 
-        if (!string.IsNullOrWhiteSpace(dto.Name))
-            component.Name = dto.Name;
+        var patchedComponent = new Component
+        {
+            Id = existing.Id,
+            SystemId = existing.SystemId,
+            Type = dto.Type ?? existing.Type,
+            Name = !string.IsNullOrWhiteSpace(dto.Name) ? dto.Name : existing.Name,
+            Description = dto.Description ?? existing.Description
+        };
 
-        if (dto.Description is not null)
-            component.Description = dto.Description;
-
-        await _repository.UpdateComponentAsync(component);
-        return MapToDto(component);
+        await _repository.UpdateComponentAsync(patchedComponent);
+        return MapToDto(patchedComponent);
     }
 
     public async Task DeleteComponentAsync(Guid id)

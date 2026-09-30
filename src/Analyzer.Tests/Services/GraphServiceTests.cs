@@ -3,7 +3,7 @@ using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
 using Analyzer.Domain.Exceptions;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Moq;
 
 namespace Analyzer.Tests.Services;
@@ -108,21 +108,29 @@ public class GraphServiceTests
     public async Task UpdateComponentAsync_UpdatesRepository()
     {
         // Arrange
-        var dto = new ComponentDto 
-        { 
-            Id = Guid.NewGuid(), 
-            SystemId = Guid.NewGuid(), 
-            Type = ComponentType.ExternalAPI, 
-            Name = "Stripe", 
-            Description = "Payments" 
+        var id = Guid.NewGuid();
+        var systemId = Guid.NewGuid();
+        var existingComponent = new Component
+        {
+            Id = id,
+            SystemId = systemId,
+            Name = "Old Name",
+            Description = "Old Desc",
+            Type = ComponentType.Microservice
         };
 
+        _graphRepoMock.Setup(r => r.GetComponentAsync(id))
+            .ReturnsAsync(existingComponent);
+
+        var dto = new UpdateComponentDto("Stripe", "Payments", ComponentType.ExternalAPI);
+
         // Act
-        await _graphService.UpdateComponentAsync(dto);
+        await _graphService.UpdateComponentAsync(id, dto);
 
         // Assert
         _graphRepoMock.Verify(r => r.UpdateComponentAsync(It.Is<Component>(c => 
-            c.Id == dto.Id &&
+            c.Id == id &&
+            c.SystemId == systemId &&
             c.Name == dto.Name &&
             c.Description == dto.Description &&
             c.Type == dto.Type)), 
@@ -298,19 +306,27 @@ public class GraphServiceTests
     public async Task UpdateComponentAsync_RepositoryFails_PropagatesException()
     {
         // Arrange
-        var dto = new ComponentDto
+        var id = Guid.NewGuid();
+        var existingComponent = new Component
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             SystemId = Guid.NewGuid(),
-            Type = ComponentType.Microservice,
             Name = "Auth",
-            Description = "Auth Service"
+            Description = "Auth Service",
+            Type = ComponentType.Microservice
         };
+
+        _graphRepoMock.Setup(r => r.GetComponentAsync(id))
+            .ReturnsAsync(existingComponent);
+
+        var dto = new UpdateComponentDto("Auth", "Auth Service", ComponentType.Microservice);
+
         _graphRepoMock.Setup(r => r.UpdateComponentAsync(It.IsAny<Component>()))
             .ThrowsAsync(new InvalidOperationException("DB Write Failure"));
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _graphService.UpdateComponentAsync(dto));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => 
+            _graphService.UpdateComponentAsync(id, dto));
     }
 
     [Fact]

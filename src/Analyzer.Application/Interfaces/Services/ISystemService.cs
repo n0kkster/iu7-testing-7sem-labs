@@ -1,6 +1,6 @@
 namespace Analyzer.Application.Interfaces.Services;
 
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 
 public interface ISystemService
 {

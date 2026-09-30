@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Analyzer.Application.Interfaces.Services;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;

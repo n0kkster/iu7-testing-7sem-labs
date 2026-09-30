@@ -3,7 +3,7 @@ using Analyzer.Application.Interfaces.Services;
 using Analyzer.Application.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Domain.Enums;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 using Moq;
 
 namespace Analyzer.Tests.Services;

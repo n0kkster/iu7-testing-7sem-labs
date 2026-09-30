@@ -3,7 +3,7 @@ namespace Analyzer.Application.Services;
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Domain.Entities;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.Common;
 
 public class SystemService(
     IGraphService graphService, 

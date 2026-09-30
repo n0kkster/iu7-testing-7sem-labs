@@ -2,7 +2,8 @@ namespace Analyzer.Application.Services;
 
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Application.Interfaces.Repositories;
-using Analyzer.Shared.DTO;
+using Analyzer.Shared.DTO.V1;
+using Analyzer.Shared.DTO.V2;
 using Analyzer.Domain.Enums;
 
 public class AnalysisService(IGraphRepository repository) : IAnalysisService
@@ -119,5 +120,90 @@ public class AnalysisService(IGraphRepository repository) : IAnalysisService
         }
 
         return result;
+    }
+
+    public async Task<AnalysisResponseDto> ExecuteAnalysisAsync(AnalysisRequestDto request)
+    {
+        return request.Type switch
+        {
+            AnalysisType.CascadingFailure => await HandleCascadingFailureAsync(request),
+            AnalysisType.Cycles => await HandleCyclesAsync(request),
+            AnalysisType.Spof => await HandleSpofAsync(request),
+            AnalysisType.Decommissioning => await HandleDecommissioningAsync(request),
+            AnalysisType.DeploymentRisk => await HandleDeploymentRiskAsync(request),
+            _ => throw new ArgumentException($"Неподдерживаемый тип анализа: {request.Type}")
+        };
+    }
+
+    private async Task<AnalysisResponseDto> HandleCascadingFailureAsync(AnalysisRequestDto request)
+    {
+        if (request.ComponentId is null || request.ComponentId == Guid.Empty)
+            throw new ArgumentException("Для симуляции каскадного сбоя обязателен ComponentId");
+
+        var impacted = await GetImpactedComponentsAsync(request.ComponentId.Value);
+
+        return new AnalysisResponseDto
+        {
+            Type = AnalysisType.CascadingFailure,
+            ImpactedComponentIds = impacted
+        };
+    }
+
+    private async Task<AnalysisResponseDto> HandleCyclesAsync(AnalysisRequestDto request)
+    {
+        if (request.SystemId is null || request.SystemId == Guid.Empty)
+            throw new ArgumentException("Для поиска циклов обязателен SystemId");
+
+        var result = await DetectCyclesAsync(request.SystemId.Value);
+
+        return new AnalysisResponseDto
+        {
+            Type = AnalysisType.Cycles,
+            Cycles = result.Cycles
+        };
+    }
+
+    private async Task<AnalysisResponseDto> HandleSpofAsync(AnalysisRequestDto request)
+    {
+        if (request.SystemId is null || request.SystemId == Guid.Empty)
+            throw new ArgumentException("Для анализа SPOF обязателен SystemId");
+
+        var result = await DetectSpofAsync(request.SystemId.Value, request.Threshold);
+
+        return new AnalysisResponseDto
+        {
+            Type = AnalysisType.Spof,
+            CriticalNodes = result.CriticalNodes
+        };
+    }
+
+    private async Task<AnalysisResponseDto> HandleDecommissioningAsync(AnalysisRequestDto request)
+    {
+        if (request.ComponentId is null || request.ComponentId == Guid.Empty)
+            throw new ArgumentException("Для анализа вывода из эксплуатации обязателен ComponentId");
+
+        var result = await PlanDecommissioningAsync(request.ComponentId.Value);
+
+        return new AnalysisResponseDto
+        {
+            Type = AnalysisType.Decommissioning,
+            ImpactedComponentIds = result.ImpactedComponentIds,
+            Recommendation = result.Recommendation
+        };
+    }
+
+    private async Task<AnalysisResponseDto> HandleDeploymentRiskAsync(AnalysisRequestDto request)
+    {
+        if (request.ComponentId is null || request.ComponentId == Guid.Empty)
+            throw new ArgumentException("Для оценки рисков развертывания обязателен ComponentId");
+
+        var result = await AssessDeploymentRiskAsync(request.ComponentId.Value);
+
+        return new AnalysisResponseDto
+        {
+            Type = AnalysisType.DeploymentRisk,
+            DeploymentRisk = result,
+            Recommendation = result.Summary
+        };
     }
 }

@@ -1,6 +1,6 @@
-using Analyzer.Domain.Enums;
+namespace Analyzer.Shared.DTO.Common;
 
-namespace Analyzer.Shared.DTO;
+using Analyzer.Domain.Enums;
 
 public class GenerateInviteDto
 {
@@ -9,6 +9,8 @@ public class GenerateInviteDto
     public int ValidForDays { get; set; }
     public Role Role { get; set; }
 }
+
+public record CreateInviteDto(string Email, int ValidForDays, Role Role);
 
 public record InviteDto(Guid Id, 
                         Role Role, 
