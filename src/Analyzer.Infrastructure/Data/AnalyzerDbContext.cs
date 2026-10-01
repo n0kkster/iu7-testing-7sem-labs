@@ -1,87 +1,83 @@
-using Analyzer.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
-
 namespace Analyzer.Infrastructure.Data;
+
+using Analyzer.Infrastructure.Data.Entities;
+using Microsoft.EntityFrameworkCore;
 
 public class AnalyzerDbContext(DbContextOptions<AnalyzerDbContext> options) : DbContext(options)
 {
-    public DbSet<User> Users => Set<User>();
-    public DbSet<Team> Teams => Set<Team>();
-    public DbSet<Invite> Invites => Set<Invite>();
-    public DbSet<ITSystem> ITSystems => Set<ITSystem>();
-    public DbSet<Avatar> Avatars => Set<Avatar>();
+    public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<TeamEntity> Teams => Set<TeamEntity>();
+    public DbSet<InviteEntity> Invites => Set<InviteEntity>();
+    public DbSet<ITSystemEntity> ITSystems => Set<ITSystemEntity>();
+    public DbSet<AvatarEntity> Avatars => Set<AvatarEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<User>(builder =>
+        modelBuilder.Entity<UserEntity>(builder =>
         {
+            builder.ToTable("users");
             builder.HasKey(u => u.Id);
             builder.HasIndex(u => u.Username).IsUnique();
             builder.HasIndex(u => u.Email).IsUnique();
 
-            builder.Property(u => u.Role).HasConversion<int>();
-
-            builder.HasOne<Avatar>()
-               .WithMany()
-               .HasForeignKey(u => u.AvatarId)
-               .OnDelete(DeleteBehavior.SetNull);
-
-            builder.HasOne<Team>()
+            builder.HasOne(u => u.Avatar)
                    .WithMany()
+                   .HasForeignKey(u => u.AvatarId)
+                   .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasOne(u => u.Team)
+                   .WithMany(t => t.Members)
                    .HasForeignKey(u => u.TeamId)
                    .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<Avatar>(builder =>
+        modelBuilder.Entity<AvatarEntity>(builder =>
         {
+            builder.ToTable("avatars");
             builder.HasKey(a => a.Id);
-            builder.HasIndex(a => new { a.UserId, a.Hash })
-                .IsUnique();
+            builder.HasIndex(a => new { a.UserId, a.Hash }).IsUnique();
 
-            builder.HasOne<User>()
-                .WithMany()
-                .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(a => a.User)
+                   .WithMany()
+                   .HasForeignKey(a => a.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasIndex(a => a.UserId);
         });
 
-        modelBuilder.Entity<Team>(builder =>
+        modelBuilder.Entity<TeamEntity>(builder =>
         {
+            builder.ToTable("teams");
             builder.HasKey(t => t.Id);
-
-            builder.Ignore(t => t.MemberIds);
-            builder.Ignore("_memberIds");
         });
 
-        modelBuilder.Entity<Invite>(builder =>
+        modelBuilder.Entity<InviteEntity>(builder =>
         {
+            builder.ToTable("invites");
             builder.HasKey(i => i.Id);
             builder.HasIndex(i => i.Code).IsUnique();
 
-            builder.Property(i => i.Status).HasConversion<int>();
-            builder.Property(i => i.Role).HasConversion<int>();
-
-            builder.HasOne<Team>()
-                   .WithMany()
+            builder.HasOne(i => i.Team)
+                   .WithMany(t => t.Invites)
                    .HasForeignKey(i => i.TeamId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne<User>()
-                   .WithMany()
+            builder.HasOne(i => i.ActivatedByUser)
+                   .WithMany(u => u.ActivatedInvites)
                    .HasForeignKey(i => i.ActivatedByUserId)
                    .OnDelete(DeleteBehavior.SetNull);
         });
 
-        modelBuilder.Entity<ITSystem>(builder =>
+        modelBuilder.Entity<ITSystemEntity>(builder =>
         {
+            builder.ToTable("it_systems");
             builder.HasKey(s => s.Id);
             builder.HasIndex(s => new { s.TeamId, s.Name }).IsUnique();
 
-            builder.HasOne<Team>()
-                   .WithMany()
+            builder.HasOne(s => s.Team)
+                   .WithMany(t => t.Systems)
                    .HasForeignKey(s => s.TeamId)
                    .OnDelete(DeleteBehavior.Cascade);
         });

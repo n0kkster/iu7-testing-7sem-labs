@@ -11,11 +11,6 @@ public class Avatar
     public string ContentType { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
-    // Для EF Core
-#pragma warning disable CS8618
-    private Avatar() { }
-#pragma warning restore CS8618
-
     public Avatar(Guid userId, byte[] data, string contentType)
     {
         Id = Guid.NewGuid();
@@ -24,5 +19,19 @@ public class Avatar
         ContentType = contentType;
         CreatedAt = DateTime.UtcNow;
         Hash = Convert.ToHexString(SHA256.HashData(Data));
+    }
+    private Avatar(Guid id, Guid userId, byte[] data, string hash, string contentType, DateTimeOffset createdAt)
+    {
+        Id = id;
+        UserId = userId;
+        Data = data;
+        Hash = hash;
+        ContentType = contentType;
+        CreatedAt = createdAt;
+    }
+
+    public static Avatar Restore(Guid id, Guid userId, byte[] data, string hash, string contentType, DateTimeOffset createdAt)
+    {
+        return new Avatar(id, userId, data, hash, contentType, createdAt);
     }
 }

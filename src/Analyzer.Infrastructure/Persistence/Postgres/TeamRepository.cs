@@ -1,6 +1,7 @@
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Domain.Entities;
 using Analyzer.Infrastructure.Data;
+using Analyzer.Infrastructure.Data.Mappers;
 using Microsoft.EntityFrameworkCore;
 
 namespace Analyzer.Infrastructure.Persistence.Postgres;
@@ -10,7 +11,7 @@ public class TeamRepository(AnalyzerDbContext context) : ITeamRepository
     private readonly AnalyzerDbContext _context = context;
     public async Task<Team?> GetByIdAsync(Guid teamId)
     {
-        var team = await _context.Teams.FirstOrDefaultAsync(t => t.Id == teamId);
+        var team = (await _context.Teams.FirstOrDefaultAsync(t => t.Id == teamId))?.ToDomain();
         
         if (team is not null)
         {
@@ -27,7 +28,7 @@ public class TeamRepository(AnalyzerDbContext context) : ITeamRepository
 
     public async Task<IReadOnlyCollection<Team>> GetAllTeamsAsync()
     {
-        var teams = await _context.Teams.ToListAsync();
+        var teams = await _context.Teams.Select(t => t.ToDomain()).ToListAsync();
         
         var teamUserMap = await _context.Users
             .Where(u => u.TeamId != null)
@@ -47,14 +48,20 @@ public class TeamRepository(AnalyzerDbContext context) : ITeamRepository
 
     public async Task AddAsync(Team team)
     {
-        await _context.Teams.AddAsync(team);
+        await _context.Teams.AddAsync(team.ToEntity());
         await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Team team)
     {
-        _context.Teams.Update(team);
-        await _context.SaveChangesAsync();
+        var entity = await _context.Teams.FindAsync(team.Id);
+        if (entity != null)
+        {
+            entity.Name = team.Name;
+            entity.Description = team.Description;
+
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteAsync(Guid teamId)

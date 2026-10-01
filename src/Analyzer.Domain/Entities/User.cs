@@ -12,14 +12,9 @@ public class User
     public Guid? TeamId { get; private set; }
     public Guid? AvatarId { get; private set; } = null;
 
-    // Для EF Core
-#pragma warning disable CS8618
-    private User() { }
-#pragma warning restore CS8618
-
-    private User(string username, string email, string passwordHash, Role role, Guid? teamId)
+    private User(Guid id, string username, string email, string passwordHash, Role role, Guid? teamId, Guid? avatarId)
     {
-        Id = Guid.NewGuid();
+        Id = id;
 
         Username = string.IsNullOrWhiteSpace(username)
                 ? throw new ArgumentException("Имя пользователя обязательно")
@@ -37,6 +32,7 @@ public class User
 
         Role = role;
         TeamId = teamId;
+        AvatarId = avatarId;
     }
 
     // Статическая фабрика жи есть
@@ -48,12 +44,17 @@ public class User
         if (teamId == Guid.Empty)
             throw new ArgumentException("Идентификатор команды обязателен для приглашенного пользователя.");
 
-        return new User(username, email, passwordHash, role, teamId);
+        return new User(Guid.NewGuid(), username, email, passwordHash, role, teamId, null);
     }
 
     public static User CreateAdmin(string username, string email, string passwordHash)
     {
-        return new User(username, email, passwordHash, Role.Admin, null);
+        return new User(Guid.NewGuid(), username, email, passwordHash, Role.Admin, null, null);
+    }
+
+    public static User Restore(Guid id, string username, string email, string passwordHash, Role role, Guid? teamId, Guid? avatarId)
+    {
+        return new User(id, username, email, passwordHash, role, teamId, avatarId);
     }
 
     public void UpdateProfile(string username, string email, Guid? newAvatarId)

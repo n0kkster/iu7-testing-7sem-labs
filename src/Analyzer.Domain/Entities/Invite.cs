@@ -27,11 +27,6 @@ public class Invite
     public Guid TeamId { get; init; }
     public Guid? ActivatedByUserId { get; private set; }
 
-    // Давим варнинг, потому что данный конструктор нужен только для EF.Core
-#pragma warning disable CS8618
-    private Invite() { }
-#pragma warning restore CS8618
-
     public Invite(string targetEmail, int validForDays, Guid teamId, Role role)
     {
         TeamId = teamId == Guid.Empty ?
@@ -52,6 +47,23 @@ public class Invite
                 Encoding.UTF8.GetBytes(targetEmail)));
 
         ExpirationDate = DateTimeOffset.UtcNow.AddDays(validForDays);
+    }
+
+    private Invite(Guid id, string targetEmail, string code, Role role, InviteStatus status, DateTimeOffset expirationDate, Guid teamId, Guid? activatedByUserId)
+    {
+        Id = id;
+        TargetEmail = targetEmail;
+        Code = code;
+        Role = role;
+        Status = status;
+        ExpirationDate = expirationDate;
+        TeamId = teamId;
+        ActivatedByUserId = activatedByUserId;
+    }
+
+    public static Invite Restore(Guid id, string targetEmail, string code, Role role, InviteStatus status, DateTimeOffset expirationDate, Guid teamId, Guid? activatedByUserId)
+    {
+        return new Invite(id, targetEmail, code, role, status, expirationDate, teamId, activatedByUserId);
     }
 
     private bool CheckTarget(string targetEmail)

@@ -3,6 +3,7 @@ using Analyzer.Domain.Entities;
 using Analyzer.Shared.DTO.Common;
 using Analyzer.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Analyzer.Infrastructure.Data.Mappers;
 
 namespace Analyzer.Infrastructure.Persistence.Postgres;
 
@@ -10,13 +11,14 @@ public class AvatarRepository(AnalyzerDbContext context) : IAvatarRepository
 {
     public async Task<Avatar?> GetByIdAsync(Guid id)
     {
-        return await context.Avatars.FirstOrDefaultAsync(a => a.Id == id);
+        return (await context.Avatars.FirstOrDefaultAsync(a => a.Id == id))?.ToDomain();
     }
 
     public async Task<Avatar?> GetByHashAsync(Guid userId, string hash)
     {
-        return await context.Avatars
-            .FirstOrDefaultAsync(a => a.UserId == userId && a.Hash == hash);
+        return (await context.Avatars
+            .FirstOrDefaultAsync(a => a.UserId == userId && a.Hash == hash))?.ToDomain();
+
     }
 
     public async Task<IReadOnlyCollection<AvatarDto>> GetHistoryByUserIdAsync(Guid userId)
@@ -30,7 +32,7 @@ public class AvatarRepository(AnalyzerDbContext context) : IAvatarRepository
 
     public async Task AddAsync(Avatar avatar)
     {
-        await context.Avatars.AddAsync(avatar);
+        await context.Avatars.AddAsync(avatar.ToEntity());
         await context.SaveChangesAsync();
     }
 

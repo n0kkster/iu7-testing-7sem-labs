@@ -1,6 +1,7 @@
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Domain.Entities;
 using Analyzer.Infrastructure.Data;
+using Analyzer.Infrastructure.Data.Mappers;
 using Microsoft.EntityFrameworkCore;
 
 namespace Analyzer.Infrastructure.Persistence.Postgres;
@@ -10,17 +11,17 @@ public class UserRepository(AnalyzerDbContext context) : IUserRepository
     private readonly AnalyzerDbContext _context = context;
     public async Task<User?> GetByIdAsync(Guid userId)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        return (await _context.Users.FirstOrDefaultAsync(u => u.Id == userId))?.ToDomain();
     }
 
     public async Task<User?> GetByUsernameAsync(string username)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+        return (await _context.Users.FirstOrDefaultAsync(u => u.Username == username))?.ToDomain();
     }
 
     public async Task<IReadOnlyCollection<User>> GetAllUsersAsync()
     {
-        return await _context.Users.ToListAsync();
+        return await _context.Users.Select(u => u.ToDomain()).ToListAsync();
     }
 
     public async Task<bool> ExistsByUsernameAsync(string username)
@@ -35,14 +36,24 @@ public class UserRepository(AnalyzerDbContext context) : IUserRepository
 
     public async Task AddAsync(User user)
     {
-        await _context.Users.AddAsync(user);
+        await _context.Users.AddAsync(user.ToEntity());
         await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(User user)
     {
-        _context.Users.Update(user);
-        await _context.SaveChangesAsync();
+        var entity = await _context.Users.FindAsync(user.Id);
+        if (entity != null)
+        {
+            entity.Username = user.Username;
+            entity.Email = user.Email;
+            entity.PasswordHash = user.PasswordHash;
+            entity.Role = (int)user.Role;
+            entity.TeamId = user.TeamId;
+            entity.AvatarId = user.AvatarId;
+
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteAsync(Guid userId)
