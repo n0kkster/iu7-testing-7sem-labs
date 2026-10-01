@@ -103,11 +103,12 @@
 
         try
         {
-            CreateComponentDto dto = new CreateComponentDto(SelectedSystemId, _type, _name ?? "", _desription ?? "");
-            var resp = await Http.PostAsJsonAsync<CreateComponentDto>("/api/v1/components/", dto);            
+            var dto = new CreateComponentDto(SelectedSystemId, _type, _name ?? "", _desription ?? "");
+            var resp = await Http.PostAsJsonAsync("/api/v2/components", dto);            
             if (resp.IsSuccessStatusCode)
             {
-                _createdGuid = await resp.Content.ReadFromJsonAsync<Guid>(); 
+                var resultObj = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                _createdGuid = resultObj.GetProperty("id").GetGuid(); 
             }
         }
         finally

@@ -43,7 +43,7 @@ public partial class AdminTeams : ComponentBase
             return;
         try
         {
-            var teams = await Http.GetFromJsonAsync<List<TeamDto>>("api/v1/teams") ?? [];
+            var teams = await Http.GetFromJsonAsync<List<TeamDto>>("api/v2/teams") ?? [];
             
             _teams = teams.Select(team => new TeamViewModel 
             {
@@ -57,8 +57,7 @@ public partial class AdminTeams : ComponentBase
             {
                 try 
                 {
-                    var invites = await Http.GetFromJsonAsync<List<InviteDto>>($"api/v1/invites/{team.Id}") ?? [];
-
+                    var invites = await Http.GetFromJsonAsync<List<InviteDto>>($"api/v2/teams/{team.Id}/invites") ?? [];                    
                     team.ActiveInvites = invites
                         .Where(i => i.Status == InviteStatus.Pending)
                         .ToList();
@@ -109,7 +108,7 @@ public partial class AdminTeams : ComponentBase
 
     private async Task RevokeInvite(TeamViewModel team, Guid inviteId)
     {
-        var response = await Http.DeleteAsync($"api/v1/invites/{inviteId}");
+        var response = await Http.DeleteAsync($"api/v2/teams/{team.Id}/invites/{inviteId}");
         response.EnsureSuccessStatusCode();
 
         team.ActiveInvites.RemoveAll(i => i.Id == inviteId);
@@ -159,7 +158,7 @@ public partial class AdminTeams : ComponentBase
 
         if (confirm == true)
         {
-            var response = await Http.DeleteAsync($"api/v1/teams/{team.Id}");
+            var response = await Http.DeleteAsync($"api/v2/teams/{team.Id}");
             response.EnsureSuccessStatusCode();
 
             _teams.Remove(team);

@@ -51,13 +51,11 @@
         if (!IsFormValid)
             return;
 
-        _dto.TeamId = TeamId;
-
         _isLoading = true;
         try
         {
-
-            var response = await Http.PostAsJsonAsync($"api/v1/invites/", _dto);
+            var createDto = new CreateInviteDto(_dto.Email, _dto.ValidForDays, _dto.Role);
+            var response = await Http.PostAsJsonAsync($"api/v2/teams/{TeamId}/invites", createDto);
             response.EnsureSuccessStatusCode();
 
             var newInvite = await response.Content.ReadFromJsonAsync<InviteDto>();

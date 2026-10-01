@@ -58,7 +58,7 @@
             return;
 
         _isDeleting = true;
-        await Http.DeleteAsync($"api/v1/links/{SelectedLink.LinkId}");
+        await Http.DeleteAsync($"api/v2/links/{SelectedLink.LinkId}");
         _isDeleting = false;
 
         await OnDelete.InvokeAsync(SelectedLink);

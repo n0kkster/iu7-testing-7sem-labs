@@ -12,7 +12,7 @@ public class AuthService(HttpClient httpClient) : IAuthService
     {
         try
         {
-            var response = await httpClient.PostAsJsonAsync("/api/v1/users/login", dto);
+            var response = await httpClient.PostAsJsonAsync("/api/v2/users/login", dto);
             
             if (!response.IsSuccessStatusCode)
                 return null;
@@ -24,14 +24,11 @@ public class AuthService(HttpClient httpClient) : IAuthService
                 return null;
             }
             
-            // Парсим клаймы из токена и добавляем сам токен как клайм
             var claims = JwtHelper.ParseClaimsFromJwt(authResponse.Token).ToList();            
             claims.Add(new Claim("jwt-api-token", authResponse.Token));
 
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            return principal;
+            return new ClaimsPrincipal(identity);
         }
         catch (Exception ex)
         {
@@ -44,7 +41,7 @@ public class AuthService(HttpClient httpClient) : IAuthService
     {
         try
         {
-            var response = await httpClient.PostAsJsonAsync("/api/v1/users/register", dto);
+            var response = await httpClient.PostAsJsonAsync("/api/v2/users/register", dto);
             
             if (!response.IsSuccessStatusCode)
                 return false;

@@ -32,8 +32,8 @@ public partial class AdminUsers : ComponentBase
             return;
         try 
         {
-            _allUsers = await Http.GetFromJsonAsync<List<UserDto>>("api/v1/users") ?? [];
-            _teams = await Http.GetFromJsonAsync<List<TeamDto>>("api/v1/teams") ?? [];
+            _allUsers = await Http.GetFromJsonAsync<List<UserDto>>("api/v2/users") ?? [];
+            _teams = await Http.GetFromJsonAsync<List<TeamDto>>("api/v2/teams") ?? [];
             
             _filteredUsers = _allUsers;
         }
@@ -87,7 +87,7 @@ public partial class AdminUsers : ComponentBase
 
         if (result == true)
         {
-            var response = await Http.DeleteAsync($"api/v1/users/{user.Id}");
+            var response = await Http.DeleteAsync($"api/v2/users/{user.Id}");
             
             if (response.IsSuccessStatusCode)
             {

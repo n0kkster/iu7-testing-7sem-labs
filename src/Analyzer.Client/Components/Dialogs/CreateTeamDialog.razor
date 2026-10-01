@@ -38,7 +38,7 @@
         _isLoading = true;
         try
         {
-            var response = await Http.PostAsJsonAsync("api/v1/teams", _dto);
+            var response = await Http.PostAsJsonAsync("api/v2/teams", _dto);
             response.EnsureSuccessStatusCode();
 
             var createdTeam = await response.Content.ReadFromJsonAsync<TeamDto>();

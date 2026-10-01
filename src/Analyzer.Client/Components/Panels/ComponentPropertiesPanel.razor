@@ -158,7 +158,7 @@
             try 
             { 
                 _component = await Http.GetFromJsonAsync<ComponentDto>(
-                    $"api/v1/components/{ComponentModel.ComponentId}"); 
+                    $"api/v2/components/{ComponentModel.ComponentId}");
             }
             finally 
             { 
@@ -174,7 +174,7 @@
 
         _isUpdating = true;
         var updateDto = new UpdateComponentDto(_component.Name, _component.Description, _component.Type);
-        await Http.PutAsJsonAsync($"api/v1/components/{_component.Id}", updateDto);
+        await Http.PutAsJsonAsync($"api/v2/components/{_component.Id}", updateDto);
         _isUpdating = false;
         
         _hasChanges = false;
@@ -187,7 +187,7 @@
             return;
         
         _isDeleting = true;
-        await Http.DeleteAsync($"api/v1/components/{_component.Id}");
+        await Http.DeleteAsync($"api/v2/components/{_component.Id}");
         _isDeleting = false;
         
         await ClosePanel();

@@ -1,3 +1,4 @@
+@using System.Security.Claims
 @using Analyzer.Shared.DTO.Common
 
 @inherits LayoutComponentBase
@@ -109,9 +110,13 @@
 
         if (user.Identity?.IsAuthenticated ?? false)
         {
-            _currentUser = await Http.GetFromJsonAsync<UserDto>("api/v1/users/me");
-            if (_currentUser is not null)
-                await LoadAvatarImage(_currentUser.AvatarId);
+            var userIdStr = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdStr, out var userId))
+            {
+                _currentUser = await Http.GetFromJsonAsync<UserDto>($"api/v2/users/{userId}");
+                if (_currentUser is not null)
+                    await LoadAvatarImage(_currentUser.AvatarId);
+            }
         }
     }
 
@@ -120,14 +125,13 @@
         if (id is null)
             return;
 
-        var response = await Http.GetAsync($"/api/v1/avatars/{id}");
+        var response = await Http.GetAsync($"/api/v2/avatars/{id}");
 
         if (response.IsSuccessStatusCode)
         {
             var bytes = await response.Content.ReadAsByteArrayAsync();
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/webp";
-            _avatarImageString = 
-                $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+            _avatarImageString = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
         }
     }
     

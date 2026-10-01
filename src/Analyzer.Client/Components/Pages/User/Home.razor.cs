@@ -1,14 +1,17 @@
 namespace Analyzer.Client.Components.Pages.User;
 
-using Microsoft.AspNetCore.Components;
+using MudBlazor;
+using Serilog;
+
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Core.PathGenerators;
 using Blazor.Diagrams.Core.Routers;
 using Blazor.Diagrams.Options;
-using MudBlazor;
-using Serilog;
+
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 
 using Analyzer.Shared.DTO.Common;
 using Analyzer.Shared.DTO.V1;
@@ -21,9 +24,13 @@ using Blazor.Diagrams.Core.Geometry;
 using BlazorLinkModel = Blazor.Diagrams.Core.Models.LinkModel;
 using LinkModel = Models.LinkModel;
 using Blazor.Diagrams.Core.Anchors;
+using Analyzer.Shared.DTO.V2;
 
 public partial class Home : ComponentBase, IDisposable
 {
+    [Inject] 
+    private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
     [Inject]
     private IDialogService DialogService { get; set; } = default!;
 
@@ -76,17 +83,23 @@ public partial class Home : ComponentBase, IDisposable
     {
         try
         {
-            var user = await Http.GetFromJsonAsync<UserDto>("api/v1/users/me");
-            if (user is null)
-            {
-                Log.Error("Ошибка получения профиля пользователя.");
-                NavManager.NavigateTo("/logout", forceLoad: true);
-                return;
-            }
-            _loggedUser = user;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdStr = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-            _systems = await Http.GetFromJsonAsync<IReadOnlyCollection<ITSystemDto>>(
-                $"api/v1/systems/?teamId={_loggedUser.TeamId}");
+            if (Guid.TryParse(userIdStr, out var userId))
+            {
+                var user = await Http.GetFromJsonAsync<UserDto>($"api/v2/users/{userId}");
+                if (user is null)
+                {
+                    Log.Error("Ошибка получения профиля пользователя.");
+                    NavManager.NavigateTo("/logout", forceLoad: true);
+                    return;
+                }
+                _loggedUser = user;
+
+                _systems = await Http.GetFromJsonAsync<IReadOnlyCollection<ITSystemDto>>(
+                    $"api/v2/systems?teamId={_loggedUser.TeamId}");
+            }
         }
         catch (Exception ex)
         {
@@ -234,7 +247,7 @@ public partial class Home : ComponentBase, IDisposable
             if ((!result?.Canceled ?? false) && result!.Data is LinkConfigDialog.LinkConfigResult config)
             {
                 var linkDto = new CreateLinkDto(sourceId, targetId, config.Severity, config.Protocol);
-                var response = await Http.PostAsJsonAsync("api/v1/links/", linkDto);
+                var response = await Http.PostAsJsonAsync("api/v2/links/", linkDto);
                 var createdLinkGuid = await response.Content.ReadFromJsonAsync<Guid>();
 
                 Diagram?.Links.Remove(linkModel);
@@ -310,9 +323,8 @@ public partial class Home : ComponentBase, IDisposable
 
         try
         {
-            var components = await Http.GetFromJsonAsync<List<ComponentDto>>($"api/v1/components/?systemId={_selectedSystemId}") ?? [];
-            var links = await Http.GetFromJsonAsync<List<LinkDto>>($"api/v1/links/?systemId={_selectedSystemId}") ?? [];
-
+            var components = await Http.GetFromJsonAsync<List<ComponentDto>>($"api/v2/systems/{_selectedSystemId}/components") ?? [];
+            var links = await Http.GetFromJsonAsync<List<LinkDto>>($"api/v2/systems/{_selectedSystemId}/links") ?? [];
             var compDict = RenderGraph(components);
             RenderLinks(links, compDict);
         }
@@ -571,61 +583,48 @@ public partial class Home : ComponentBase, IDisposable
 
         try
         {
-            var result = await Http.GetFromJsonAsync<IReadOnlyCollection<Guid>>(
-                $"api/v1/analysis/simulate/{initialFailedComponentId}");
+            var request = new AnalysisRequestDto(AnalysisType.CascadingFailure, ComponentId: initialFailedComponentId);
+            var response = await Http.PostAsJsonAsync("api/v2/analysis", request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AnalysisResponseDto>();
 
-            if (result is null || !result.Any())
+            var impacted = result?.ImpactedComponentIds ?? [];
+            if (!impacted.Any())
             {
                 Snackbar.Add("Сбой не привел к каскадному отказу других компонентов.", Severity.Success);
                 return;
             }
 
             _isAnalysisMode = true;
-
-            var allFailedIds = result.ToHashSet();
+            var allFailedIds = impacted.ToHashSet();
             allFailedIds.Add(initialFailedComponentId);
 
-            foreach (var node in Diagram!.Nodes)
+            foreach (var node in Diagram!.Nodes.OfType<ComponentModel>())
             {
-                if (node is ComponentModel componentModel)
+                node.IsFailed = allFailedIds.Contains(node.ComponentId);
+                node.IsDimmed = !allFailedIds.Contains(node.ComponentId);
+                node.Refresh();
+            }
+
+            foreach (var link in Diagram.Links.OfType<LinkModel>())
+            {
+                if (link.Source.Model is PortModel sPort && link.Target.Model is PortModel tPort)
                 {
-                    if (allFailedIds.Contains(componentModel.ComponentId))
+                    var sId = sPort.GetParent<ComponentModel>().ComponentId;
+                    var tId = tPort.GetParent<ComponentModel>().ComponentId;
+
+                    if (allFailedIds.Contains(sId) && allFailedIds.Contains(tId))
                     {
-                        componentModel.IsFailed = true;
-                        componentModel.IsDimmed = false;
+                        link.Color = "#ff3f5f";
+                        link.Width = 4;
+                        link.IsDimmed = false;
                     }
                     else
                     {
-                        componentModel.IsFailed = false;
-                        componentModel.IsDimmed = true;
+                        link.Color = "#e2e8f0";
+                        link.IsDimmed = true;
                     }
-                    componentModel.Refresh();
-                }
-            }
-
-            foreach (var link in Diagram.Links)
-            {
-                if (link is LinkModel linkModel)
-                {
-                    if (linkModel.Source.Model is PortModel sourcePort &&
-                        linkModel.Target.Model is PortModel targetPort)
-                    {
-                        var sourceId = sourcePort.GetParent<ComponentModel>().ComponentId;
-                        var targetId = targetPort.GetParent<ComponentModel>().ComponentId;
-
-                        if (allFailedIds.Contains(sourceId) && allFailedIds.Contains(targetId))
-                        {
-                            linkModel.Color = "#ff3f5f";
-                            linkModel.Width = 4;
-                            linkModel.IsDimmed = false;
-                        }
-                        else
-                        {
-                            linkModel.Color = "#e2e8f0";
-                            linkModel.IsDimmed = true;
-                        }
-                        linkModel.Refresh();
-                    }
+                    link.Refresh();
                 }
             }
 
@@ -647,16 +646,20 @@ public partial class Home : ComponentBase, IDisposable
         _isLoadingGraph = true;
         try
         {
-            var result = await Http.GetFromJsonAsync<CycleAnalysisResultDto>(
-                $"api/v1/analysis/cycles/{_selectedSystemId}");
-            if (result is null || !result.Cycles.Any())
+            var request = new AnalysisRequestDto(AnalysisType.Cycles, SystemId: _selectedSystemId);
+            var response = await Http.PostAsJsonAsync("api/v2/analysis", request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AnalysisResponseDto>();
+
+            var cycles = result?.Cycles ?? [];
+            if (!cycles.Any())
             {
                 Snackbar.Add("Циклические зависимости не обнаружены.", Severity.Success);
                 return;
             }
 
             _isAnalysisMode = true;
-            var allNodesInCycles = result.Cycles.SelectMany(x => x).ToHashSet();
+            var allNodesInCycles = cycles.SelectMany(x => x).ToHashSet();
 
             foreach (var node in Diagram!.Nodes.OfType<ComponentModel>())
             {
@@ -669,7 +672,7 @@ public partial class Home : ComponentBase, IDisposable
                 var sId = (link.Source.Model as PortModel)?.GetParent<ComponentModel>().ComponentId ?? Guid.Empty;
                 var tId = (link.Target.Model as PortModel)?.GetParent<ComponentModel>().ComponentId ?? Guid.Empty;
 
-                if (result.Cycles.Any(c => c.Contains(sId) && c.Contains(tId)))
+                if (cycles.Any(c => c.Contains(sId) && c.Contains(tId)))
                 {
                     link.Color = "#9c27b0";
                     link.Width = 4;
@@ -682,7 +685,7 @@ public partial class Home : ComponentBase, IDisposable
                 link.Refresh();
             }
 
-            Snackbar.Add($"Найдено {result.Cycles.Count} циклов в системе", Severity.Warning);
+            Snackbar.Add($"Найдено {cycles.Count} циклов в системе", Severity.Warning);
         }
         catch (Exception) 
         { 
@@ -699,9 +702,14 @@ public partial class Home : ComponentBase, IDisposable
         _isLoadingGraph = true;
         try
         {
-            var result = await Http.GetFromJsonAsync<SpofAnalysisResultDto>(
-                $"api/v1/analysis/spof/{_selectedSystemId}?threshold={Diagram?.Nodes.Count - 1 ?? 3}");
-            if (result is null || !result.CriticalNodes.Any())
+            var threshold = Diagram?.Nodes.Count - 1 ?? 3;
+            var request = new AnalysisRequestDto(AnalysisType.Spof, SystemId: _selectedSystemId, Threshold: threshold);
+            var response = await Http.PostAsJsonAsync("api/v2/analysis", request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AnalysisResponseDto>();
+
+            var criticalNodes = result?.CriticalNodes ?? [];
+            if (!criticalNodes.Any())
             {
                 Snackbar.Add("Критичные единые точки отказа не найдены.", Severity.Success);
                 return;
@@ -711,16 +719,8 @@ public partial class Home : ComponentBase, IDisposable
 
             foreach (var node in Diagram!.Nodes.OfType<ComponentModel>())
             {
-                if (result.CriticalNodes.ContainsKey(node.ComponentId))
-                {
-                    node.IsFailed = true;
-                    node.IsDimmed = false;
-                }
-                else
-                {
-                    node.IsFailed = false;
-                    node.IsDimmed = true;
-                }
+                node.IsFailed = criticalNodes.ContainsKey(node.ComponentId);
+                node.IsDimmed = !criticalNodes.ContainsKey(node.ComponentId);
                 node.Refresh();
             }
 
@@ -730,7 +730,7 @@ public partial class Home : ComponentBase, IDisposable
                 link.Refresh();
             }
 
-            Snackbar.Add($"Найдено {result.CriticalNodes.Count} узлов SPOF", Severity.Error);
+            Snackbar.Add($"Найдено {criticalNodes.Count} узлов SPOF", Severity.Error);
         }
         catch (Exception) 
         { 
@@ -748,11 +748,13 @@ public partial class Home : ComponentBase, IDisposable
         _isLoadingGraph = true;
         try
         {
-            var result = await Http.GetFromJsonAsync<DecommissioningResultDto>(
-                $"api/v1/analysis/decommission/{targetId}");
+            var request = new AnalysisRequestDto(AnalysisType.Decommissioning, ComponentId: targetId);
+            var response = await Http.PostAsJsonAsync("api/v2/analysis", request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AnalysisResponseDto>();
 
             _isAnalysisMode = true;
-            var impacted = result!.ImpactedComponentIds.ToHashSet();
+            var impacted = (result?.ImpactedComponentIds ?? []).ToHashSet();
 
             foreach (var node in Diagram!.Nodes.OfType<ComponentModel>())
             {
@@ -774,7 +776,7 @@ public partial class Home : ComponentBase, IDisposable
             }
 
             Severity msgSeverity = impacted.Any() ? Severity.Error : Severity.Success;
-            Snackbar.Add(result.Recommendation, msgSeverity);
+            Snackbar.Add(result?.Recommendation ?? "Оценка завершена", msgSeverity);
         }
         catch (Exception) 
         { 
@@ -792,10 +794,13 @@ public partial class Home : ComponentBase, IDisposable
         _isLoadingGraph = true;
         try
         {
-            var result = await Http.GetFromJsonAsync<DeploymentRiskResultDto>(
-                $"api/v1/analysis/deployment-risk/{targetId}");
+            var request = new AnalysisRequestDto(AnalysisType.DeploymentRisk, ComponentId: targetId);
+            var response = await Http.PostAsJsonAsync("api/v2/analysis", request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AnalysisResponseDto>();
 
-            Severity severity = result!.RiskLevel switch
+            var risk = result?.DeploymentRisk;
+            Severity severity = risk?.RiskLevel switch
             {
                 "Critical" => Severity.Error,
                 "High" => Severity.Warning,
@@ -803,7 +808,7 @@ public partial class Home : ComponentBase, IDisposable
                 _ => Severity.Success
             };
 
-            Snackbar.Add($"Риск: {result.RiskLevel}. Очки: {result.RiskScore}. {result.Summary}", severity);
+            Snackbar.Add($"Риск: {risk?.RiskLevel}. Очки: {risk?.RiskScore}. {result?.Recommendation}", severity);
         }
         catch (Exception) 
         { 

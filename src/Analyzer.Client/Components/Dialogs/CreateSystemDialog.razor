@@ -43,7 +43,7 @@
         _isLoading = true;
         try
         {
-            var response = await Http.PostAsJsonAsync("api/v1/systems", _dto);
+            var response = await Http.PostAsJsonAsync("api/v2/systems", _dto);
             response.EnsureSuccessStatusCode();
 
             _isLoading = false;

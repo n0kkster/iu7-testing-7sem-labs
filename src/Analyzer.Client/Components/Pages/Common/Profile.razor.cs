@@ -1,24 +1,24 @@
-using Microsoft.AspNetCore.Components;
-using MudBlazor;
-
-using Analyzer.Shared.DTO.Common;
-using Analyzer.Domain.Enums;
-using Analyzer.Client.Components.Dialogs;
-
 namespace Analyzer.Client.Components.Pages.Common;
+
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using MudBlazor;
+using Analyzer.Shared.DTO.Common;
+using Analyzer.Client.Components.Dialogs;
 
 public partial class Profile : ComponentBase
 {
-    [Inject]
-    private IDialogService DialogService { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
 
     private bool _isLoading = true;
     private UserDto? _user;
+    private Guid _currentUserId;
 
     private bool _isSavingProfile = false;
     private bool _isSavingPassword = false;
 
-    // Модели форм
     private UpdateProfileViewModel _profileModel = new();
     private ChangePasswordViewModel _passwordModel = new();
 
@@ -36,15 +36,23 @@ public partial class Profile : ComponentBase
     {
         try
         {
-            _user = await Http.GetFromJsonAsync<UserDto>("api/v1/users/me");
-            if (_user is not null)
-            {
-                _profileModel.Username = _user.Username;
-                _profileModel.Email = _user.Email;
-                _profileModel.AvatarId = _user.AvatarId;
-            }
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdStr = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            await LoadAvatarImage(_profileModel.AvatarId);
+            if (Guid.TryParse(userIdStr, out var userId))
+            {
+                _currentUserId = userId;
+                _user = await Http.GetFromJsonAsync<UserDto>($"api/v2/users/{_currentUserId}");
+
+                if (_user is not null)
+                {
+                    _profileModel.Username = _user.Username;
+                    _profileModel.Email = _user.Email;
+                    _profileModel.AvatarId = _user.AvatarId;
+                }
+
+                await LoadAvatarImage(_profileModel.AvatarId);
+            }
         }
         catch { }
         finally
@@ -58,7 +66,13 @@ public partial class Profile : ComponentBase
         _isSavingProfile = true;
         try
         {
-            var response = await Http.PutAsJsonAsync("api/v1/users/me/profile", _profileModel);
+            var patchDto = new PatchUserDto(
+                Username: _profileModel.Username,
+                Email: _profileModel.Email,
+                AvatarId: _profileModel.AvatarId
+            );
+
+            var response = await Http.PatchAsJsonAsync($"api/v2/users/{_currentUserId}", patchDto);
             
             if (response.IsSuccessStatusCode)
             {
@@ -82,12 +96,12 @@ public partial class Profile : ComponentBase
         _isSavingPassword = true;
         try
         {
-            var request = new {
-                _passwordModel.OldPassword,
-                _passwordModel.NewPassword 
-            };
+            var patchDto = new PatchUserDto(
+                OldPassword: _passwordModel.OldPassword,
+                NewPassword: _passwordModel.NewPassword
+            );
 
-            var response = await Http.PutAsJsonAsync("api/v1/users/me/password", request);
+            var response = await Http.PatchAsJsonAsync($"api/v2/users/{_currentUserId}", patchDto);
 
             if (response.IsSuccessStatusCode)
             {
@@ -104,35 +118,18 @@ public partial class Profile : ComponentBase
 
     private void ToggleOldPasswordVisibility()
     {
-        if (_showOldPassword)
-        {
-            _showOldPassword = false;
-            _oldPasswordIcon = Icons.Material.Filled.VisibilityOff;
-            _oldPasswordInput = InputType.Password;
-        }
-        else
-        {
-            _showOldPassword = true;
-            _oldPasswordIcon = Icons.Material.Filled.Visibility;
-            _oldPasswordInput = InputType.Text;
-        }
+        _showOldPassword = !_showOldPassword;
+        _oldPasswordIcon = _showOldPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+        _oldPasswordInput = _showOldPassword ? InputType.Text : InputType.Password;
     }
 
     private void ToggleNewPasswordVisibility()
     {
-        if (_showNewPassword)
-        {
-            _showNewPassword = false;
-            _newPasswordIcon = Icons.Material.Filled.VisibilityOff;
-            _newPasswordInput = InputType.Password;
-        }
-        else
-        {
-            _showNewPassword = true;
-            _newPasswordIcon = Icons.Material.Filled.Visibility;
-            _newPasswordInput = InputType.Text;
-        }
+        _showNewPassword = !_showNewPassword;
+        _newPasswordIcon = _showNewPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+        _newPasswordInput = _showNewPassword ? InputType.Text : InputType.Password;
     }
+
     private async Task OpenAvatarDialog()
     {
         var parameters = new DialogParameters<AvatarDialog>
@@ -164,14 +161,13 @@ public partial class Profile : ComponentBase
 
         try
         {
-            var response = await Http.GetAsync($"/api/v1/avatars/{id}");
+            var response = await Http.GetAsync($"/api/v2/avatars/{id}");
 
             if (response.IsSuccessStatusCode)
             {
                 var bytes = await response.Content.ReadAsByteArrayAsync();
                 var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/webp";
-                _avatarImageString = 
-                    $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+                _avatarImageString = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
             }
         }
         catch { }

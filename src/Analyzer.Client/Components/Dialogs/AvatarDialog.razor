@@ -156,9 +156,7 @@
         _isLoadingHistory = true;
         try
         {
-            var result = await Http.GetFromJsonAsync<List<AvatarDto>>(
-                "/api/v1/avatars/history");
-
+            var result = await Http.GetFromJsonAsync<List<AvatarDto>>("/api/v2/avatars/history");
             if (result is not null) 
                 _history = result;
         }
@@ -180,7 +178,7 @@
 
     private async Task DeleteAvatar(Guid id)
     {
-        var response = await Http.DeleteAsync($"/api/v1/avatars/{id}");
+        var response = await Http.DeleteAsync($"/api/v2/avatars/{id}");
         
         if (response.IsSuccessStatusCode)
         {
@@ -210,7 +208,7 @@
             
             content.Add(fileContent, "file", file.Name);
 
-            var response = await Http.PostAsync("/api/v1/avatars/upload", content);
+            var response = await Http.PostAsync("/api/v2/avatars", content);
             
             if (response.IsSuccessStatusCode)
             {
