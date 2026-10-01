@@ -12,8 +12,7 @@ run_unit() {
     dotnet test Analyzer.Tests/Analyzer.Tests.csproj \
         --configuration Release \
         --no-build \
-        --results-directory "$RESULTS_DIR" \
-        --logger "trx;LogFileName=unit-results.trx" \
+        --logger "trx;LogFileName=/app/TestResults/unit-results.trx" \
         -p:CollectCoverage=true \
         -p:CoverletOutputFormat=cobertura \
         -p:CoverletOutput="$RESULTS_DIR/unit-coverage.cobertura.xml"
@@ -26,9 +25,8 @@ run_integration() {
     dotnet test Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj \
         --configuration Release \
         --no-build \
-        --results-directory "$RESULTS_DIR" \
         --filter "FullyQualifiedName!~E2E" \
-        --logger "trx;LogFileName=integration-results.trx"
+        --logger "trx;LogFileName=/app/TestResults/integration-results.trx"
 }
 
 run_e2e() {
@@ -38,9 +36,8 @@ run_e2e() {
     dotnet test Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj \
         --configuration Release \
         --no-build \
-        --results-directory "$RESULTS_DIR" \
         --filter "FullyQualifiedName~E2E" \
-        --logger "trx;LogFileName=e2e-results.trx"
+        --logger "trx;LogFileName=/app/TestResults/e2e-results.trx"
 }
 
 case "$STAGE" in

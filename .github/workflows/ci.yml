@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
-          path: TestResults/unit-results.trx
+          path: "**/TestResults/unit-results.trx"
           if-no-files-found: ignore
 
   # =========================================================================
@@ -70,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
-          path: TestResults/integration-results.trx
+          path: "**/TestResults/integration-results.trx"
           if-no-files-found: ignore
 
   # =========================================================================
@@ -94,9 +94,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-test-results
-          path: TestResults/e2e-results.trx
+          path: "**/TestResults/e2e-results.trx"
           if-no-files-found: ignore
-
+          
   # =========================================================================
   # 5. Генерация отчетов и трендов
   # =========================================================================
