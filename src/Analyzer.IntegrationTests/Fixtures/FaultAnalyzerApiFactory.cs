@@ -45,6 +45,12 @@ public class FaultAnalyzerApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("Neo4jSettings:Uri", _neo4jContainer.GetConnectionString());
         builder.UseSetting("Neo4jSettings:User", "neo4j");
         builder.UseSetting("Neo4jSettings:Password", "password");
+
+        builder.UseSetting("Jwt:Key", "SuperSecretTestingKeyForJwtSigning1234567890!");
+        builder.UseSetting("Jwt:Issuer", "FaultAnalyzer");
+        builder.UseSetting("Jwt:Audience", "FaultAnalyzerAudience");
+        builder.UseSetting("Jwt:ExpireMinutes", "60");
+        
         builder.UseSetting("AdminSettings:Username", "admin");
         builder.UseSetting("AdminSettings:Password", "AdminSecret123!");
         builder.UseSetting("AdminSettings:Email", "admin@analyzer.local");
