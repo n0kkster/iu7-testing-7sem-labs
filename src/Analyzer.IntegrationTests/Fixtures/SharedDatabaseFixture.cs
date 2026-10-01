@@ -5,10 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.MongoDb;
 using Testcontainers.PostgreSql;
 using DotNet.Testcontainers.Containers;
+using Analyzer.Application.Interfaces.Services;
+using Analyzer.Application.Services;
+using Analyzer.Application.Interfaces.Providers;
+using Analyzer.Infrastructure.Providers;
+using Microsoft.Extensions.Configuration;
+
 
 using Postgres = Analyzer.Infrastructure.Persistence.Postgres;
 using Mongo = Analyzer.Infrastructure.Persistence.Mongo;
-using Serilog;
 
 namespace Analyzer.IntegrationTests.Fixtures;
 
@@ -74,6 +79,21 @@ public class SharedDatabaseFixture : IAsyncLifetime
             using var scope = sp.CreateScope();
             await scope.ServiceProvider.GetRequiredService<AnalyzerDbContext>().Database.MigrateAsync();
         }
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Key"] = "SuperSecretIntegrationTestingKey1234567890!",
+                ["Jwt:Issuer"] = "AnalyzerTestIssuer",
+                ["Jwt:Audience"] = "AnalyzerTestAudience",
+                ["Jwt:ExpireMinutes"] = "60"
+            })
+            .Build();
+
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddScoped<IJwtProvider, JwtProvider>();
+        services.AddScoped<ITeamService, TeamService>();
+        services.AddScoped<IInviteService, InviteService>();
+        services.AddScoped<IUserService, UserService>();
 
         ServiceProvider = services.BuildServiceProvider();
     }

@@ -34,8 +34,30 @@ report: clean test
 		-reporttypes:HtmlInline_AzurePipelines
 	@xdg-open $(REPORT_DIR)/index.html 2>/dev/null || echo "Отчет сгенерирован в $(REPORT_DIR)/index.html"
 
+docker-test:
+	docker compose -f docker-compose.testing.yml build
+	docker compose -f docker-compose.testing.yml run --rm test-runner all
+
+docker-test-unit:
+	docker compose -f docker-compose.testing.yml run --rm test-runner unit
+
+docker-test-integration:
+	docker compose -f docker-compose.testing.yml run --rm test-runner integration
+
+docker-test-e2e:
+	docker compose -f docker-compose.testing.yml run --rm test-runner e2e
+
 test-offline:
 	unshare -r -n sh -c "ip link set lo up && dotnet test $(TEST_PROJECT) --no-restore"
+
+capture-traffic:
+	@echo "=== Запуск захвата трафика ==="
+	sudo tcpdump -i lo -nn -s 0 -w traffic_dump.pcap port 1555 > /dev/null 2>&1 & TCPDUMP_PID=$$!; \
+	sleep 1; \
+	./simulate-e2e.sh; \
+	sleep 1; \
+	sudo kill $$TCPDUMP_PID; \
+	echo "=== Захват завершен. Файл сохранен в traffic_dump.pcap ==="
 
 clean:
 	-rm -rf $(RESULTS_DIR)

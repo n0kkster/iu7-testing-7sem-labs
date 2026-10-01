@@ -1,0 +1,32 @@
+ARG DOTNET_VERSION=10.0
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS test-runner
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    tar && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then DOCKER_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then DOCKER_ARCH="aarch64"; \
+    else DOCKER_ARCH="x86_64"; fi && \
+    curl -fsSL "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-27.3.1.tgz" | \
+    tar xzvf - --strip 1 -C /usr/local/bin docker/docker && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Копируем исходный код
+COPY . .
+
+# Восстанавливаем зависимости тестовых проектов напрямую (это подтянет и все зависимые проекты)
+RUN dotnet restore Analyzer.Tests/Analyzer.Tests.csproj && \
+    dotnet restore Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj
+
+RUN chmod +x run-tests.sh
+
+# Собираем проекты
+RUN dotnet build Analyzer.Tests/Analyzer.Tests.csproj --configuration Release --no-restore && \
+    dotnet build Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj --configuration Release --no-restore
+
+ENTRYPOINT ["./run-tests.sh"]
+CMD ["all"]

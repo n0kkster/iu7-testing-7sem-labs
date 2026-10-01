@@ -5,7 +5,6 @@ namespace Analyzer.IntegrationTests.Fixtures;
 
 public class SharedNeo4jFixture : IAsyncLifetime
 {
-    // Поднимаем Neo4j с плагином APOC, как в вашем docker-compose
     private readonly Neo4jContainer _neo4jContainer = new Neo4jBuilder("neo4j:latest")
         .WithEnvironment("NEO4J_PLUGINS", "[\"apoc\"]")
         .WithEnvironment("NEO4J_apoc_export_file_enabled", "true")
@@ -29,7 +28,6 @@ public class SharedNeo4jFixture : IAsyncLifetime
     }
 }
 
-// Регистрируем Fixture в xUnit
 [CollectionDefinition("Neo4j collection")]
 public class Neo4jCollection : ICollectionFixture<SharedNeo4jFixture>
 { }
