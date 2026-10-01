@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+defaults:
+  run:
+    working-directory: src
+
 jobs:
   # =========================================================================
   # 1. Сборка контейнера тестов
