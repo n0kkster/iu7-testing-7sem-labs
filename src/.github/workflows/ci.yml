@@ -1,0 +1,117 @@
+name: CI / Test Pipeline
+
+on:
+  push:
+    branches: [ "main", "master", "testing_02" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # =========================================================================
+  # 1. Сборка контейнера тестов
+  # =========================================================================
+  build-test-image:
+    name: Build Test Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Testing Docker Image
+        run: |
+          docker compose -f docker-compose.testing.yml build
+
+  # =========================================================================
+  # 2. Стадия 1/3: UNIT тесты
+  # =========================================================================
+  test-unit:
+    name: 1. Unit Tests
+    needs: build-test-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Unit Tests in Docker
+        run: |
+          mkdir -p TestResults
+          docker compose -f docker-compose.testing.yml run --rm test-runner unit
+
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: TestResults/unit-results.trx
+
+  # =========================================================================
+  # 3. Стадия 2/3: INTEGRATION тесты
+  # =========================================================================
+  test-integration:
+    name: 2. Integration Tests
+    needs: test-unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Integration Tests in Docker
+        run: |
+          mkdir -p TestResults
+          docker compose -f docker-compose.testing.yml run --rm test-runner integration
+
+      - name: Upload Integration Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: TestResults/integration-results.trx
+
+  # =========================================================================
+  # 4. Стадия 3/3: E2E тесты
+  # =========================================================================
+  test-e2e:
+    name: 3. E2E Tests
+    needs: test-integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run E2E Tests in Docker
+        run: |
+          mkdir -p TestResults
+          docker compose -f docker-compose.testing.yml run --rm test-runner e2e
+
+      - name: Upload E2E Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: TestResults/e2e-results.trx
+
+  # =========================================================================
+  # 5. Генерация отчетов и трендов
+  # =========================================================================
+  publish-reports-and-trends:
+    name: Test Reports & Trends
+    needs: [test-unit, test-integration, test-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+      issues: read
+    steps:
+      - name: Download All Test Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: combined-results
+
+      - name: Publish Test Results with History Trends
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          trx_files: "combined-results/**/*.trx"
+          comment_mode: always
+          compare_to_earlier_commit: true
