@@ -19,13 +19,6 @@ public class LinkController(IGraphService graphService) : ControllerBase
         return Ok(links);
     }
 
-    [HttpGet("~/api/v1/systems/{systemId:guid}/links")]
-    public async Task<ActionResult<IReadOnlyCollection<LinkDto>>> GetLinksBySystem(Guid systemId)
-    {
-        var links = await _graphService.GetLinksBySystemIdAsync(systemId);
-        return Ok(links);
-    }
-
     [HttpPost]
     public async Task<IActionResult> CreateLink([FromBody] CreateLinkDto linkDto)
     {

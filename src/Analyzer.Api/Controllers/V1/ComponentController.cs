@@ -10,59 +10,44 @@ using Microsoft.AspNetCore.Mvc;
 [Route("api/v1/components")]
 public class ComponentController(IGraphService graphService) : ControllerBase
 {
-    private readonly IGraphService _graphService = graphService;
+    readonly IGraphService _graphService = graphService;
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<ComponentDto>>> GetComponents([FromQuery] Guid systemId)
+    public async Task<IActionResult> GetAllComponentsBySystemId([FromQuery] Guid systemId)
     {
-        var components = await _graphService.GetComponentsBySystemIdAsync(systemId);
-        return Ok(components);
+        var componentDtos = await _graphService.GetComponentsBySystemIdAsync(systemId);
+        return Ok(componentDtos);
     }
 
-    [HttpGet("~/api/v1/systems/{systemId:guid}/components")]
-    public async Task<ActionResult<IReadOnlyCollection<ComponentDto>>> GetComponentsBySystem(Guid systemId)
-    {
-        var components = await _graphService.GetComponentsBySystemIdAsync(systemId);
-        return Ok(components);
-    }
-
-    [HttpGet("{id:guid}")]
-    [ActionName(nameof(GetComponentById))]
-    public async Task<ActionResult<ComponentDto>> GetComponentById(Guid id)
-    {
-        var component = await _graphService.GetComponentDetailsAsync(id);
-        return Ok(component);
-    }
-
-    [Authorize(Roles = "Architect")]
+    [Authorize (Roles = "Architect")]
     [HttpPost]
     public async Task<IActionResult> CreateComponent([FromBody] CreateComponentDto dto)
     {
-        var id = await _graphService.CreateComponentAsync(dto);
-        return CreatedAtAction(nameof(GetComponentById), new { id }, new { id });
+        var guid = await _graphService.CreateComponentAsync(dto);
+        return Ok(guid);
     }
 
-    [Authorize(Roles = "Architect")]
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateComponent(Guid id, [FromBody] UpdateComponentDto dto)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetComponentDetails(Guid id)
     {
-        var updated = await _graphService.UpdateComponentAsync(id, dto);
-        return Ok(updated);
+        var componentDto = await _graphService.GetComponentDetailsAsync(id);
+        return Ok(componentDto);
     }
 
-    [Authorize(Roles = "Architect")]
-    [HttpPatch("{id:guid}")]
-    public async Task<IActionResult> PatchComponent(Guid id, [FromBody] PatchComponentDto dto)
+    [Authorize (Roles = "Architect")]
+    [HttpPut]
+    public async Task<IActionResult> UpdateComponent([FromBody] ComponentDto dto)
     {
-        var patched = await _graphService.PatchComponentAsync(id, dto);
-        return Ok(patched);
+        var updateDto = new UpdateComponentDto(dto.Name, dto.Description, dto.Type);
+        await _graphService.UpdateComponentAsync(dto.Id, updateDto);
+        return Ok();
     }
 
-    [Authorize(Roles = "Architect")]
-    [HttpDelete("{id:guid}")]
+    [Authorize (Roles = "Architect")]
+    [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteComponent(Guid id)
     {
         await _graphService.DeleteComponentAsync(id);
-        return NoContent();
+        return Ok();
     }
 }
