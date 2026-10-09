@@ -103,7 +103,6 @@ jobs:
   # =========================================================================
   allure-report:
     name: Generate Allure Report & Trends
-    needs: [test-unit, test-integration, test-e2e]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -114,13 +113,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Скачиваем результаты в корень workspace
       - name: Download All Test Results
         uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/combined-results
 
-      # Вытаскиваем файлы через абсолютные пути переменной $GITHUB_WORKSPACE
       - name: Flatten Test Results for Allure
         run: |
           mkdir -p "$GITHUB_WORKSPACE/allure-results"
