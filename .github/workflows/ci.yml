@@ -50,60 +50,60 @@ jobs:
           path: src/TestResults/
           if-no-files-found: ignore
 
-  # # =========================================================================
-  # # 3. Стадия 2/3: INTEGRATION тесты
-  # # =========================================================================
-  # test-integration:
-  #   name: 2. Integration Tests
-  #   needs: test-unit
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v4
+  # =========================================================================
+  # 3. Стадия 2/3: INTEGRATION тесты
+  # =========================================================================
+  test-integration:
+    name: 2. Integration Tests
+    needs: test-unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  #     - name: Run Integration Tests in Docker
-  #       run: |
-  #         mkdir -p TestResults/allure-results
-  #         docker compose -f docker-compose.testing.yml run --rm test-runner integration
+      - name: Run Integration Tests in Docker
+        run: |
+          mkdir -p TestResults/allure-results
+          docker compose -f docker-compose.testing.yml run --rm test-runner integration
 
-  #     - name: Upload Integration Results
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: integration-results
-  #         path: src/TestResults/
-  #         if-no-files-found: ignore
+      - name: Upload Integration Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-results
+          path: src/TestResults/
+          if-no-files-found: ignore
 
-  # # =========================================================================
-  # # 4. Стадия 3/3: E2E тесты
-  # # =========================================================================
-  # test-e2e:
-  #   name: 3. E2E Tests
-  #   needs: test-integration
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v4
+  # =========================================================================
+  # 4. Стадия 3/3: E2E тесты
+  # =========================================================================
+  test-e2e:
+    name: 3. E2E Tests
+    needs: test-integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  #     - name: Run E2E Tests in Docker
-  #       run: |
-  #         mkdir -p TestResults/allure-results
-  #         docker compose -f docker-compose.testing.yml run --rm test-runner e2e
+      - name: Run E2E Tests in Docker
+        run: |
+          mkdir -p TestResults/allure-results
+          docker compose -f docker-compose.testing.yml run --rm test-runner e2e
 
-  #     - name: Upload E2E Results
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: e2e-results
-  #         path: src/TestResults/
-  #         if-no-files-found: ignore
+      - name: Upload E2E Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: src/TestResults/
+          if-no-files-found: ignore
 
   # =========================================================================
   # 5. Генерация Allure-отчета с трендами и публикация
   # =========================================================================
   allure-report:
     name: Generate Allure Report & Trends
-    needs: [test-unit]
+    needs: [test-unit, test-integration, test-e2e]
     if: always()
     runs-on: ubuntu-latest
     permissions:
