@@ -1,6 +1,7 @@
 name: CI / Test Pipeline
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main", "master", "testing_02" ]
   pull_request:
@@ -38,15 +39,15 @@ jobs:
 
       - name: Run Unit Tests in Docker
         run: |
-          mkdir -p TestResults
+          mkdir -p TestResults/allure-results
           docker compose -f docker-compose.testing.yml run --rm test-runner unit
 
-      - name: Upload Unit Test Results
+      - name: Upload Unit Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results
-          path: "**/TestResults/unit-results.trx"
+          name: unit-results
+          path: src/TestResults/
           if-no-files-found: ignore
 
   # =========================================================================
@@ -62,15 +63,15 @@ jobs:
 
       - name: Run Integration Tests in Docker
         run: |
-          mkdir -p TestResults
+          mkdir -p TestResults/allure-results
           docker compose -f docker-compose.testing.yml run --rm test-runner integration
 
-      - name: Upload Integration Test Results
+      - name: Upload Integration Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-results
-          path: "**/TestResults/integration-results.trx"
+          name: integration-results
+          path: src/TestResults/
           if-no-files-found: ignore
 
   # =========================================================================
@@ -86,39 +87,71 @@ jobs:
 
       - name: Run E2E Tests in Docker
         run: |
-          mkdir -p TestResults
+          mkdir -p TestResults/allure-results
           docker compose -f docker-compose.testing.yml run --rm test-runner e2e
 
-      - name: Upload E2E Test Results
+      - name: Upload E2E Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-results
-          path: "**/TestResults/e2e-results.trx"
+          name: e2e-results
+          path: src/TestResults/
           if-no-files-found: ignore
-          
+
   # =========================================================================
-  # 5. Генерация отчетов и трендов
+  # 5. Генерация Allure-отчета с трендами и публикация
   # =========================================================================
-  publish-reports-and-trends:
-    name: Test Reports & Trends
+  allure-report:
+    name: Generate Allure Report & Trends
     needs: [test-unit, test-integration, test-e2e]
     if: always()
     runs-on: ubuntu-latest
     permissions:
-      checks: write
-      pull-requests: write
-      contents: read
-      issues: read
+      contents: write
+      pages: write
+      id-token: write
     steps:
-      - name: Download All Test Artifacts
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Скачиваем результаты со всех предыдущих стадий
+      - name: Download All Test Results
         uses: actions/download-artifact@v4
         with:
           path: combined-results
 
-      - name: Publish Test Results with History Trends
-        uses: EnricoMi/publish-unit-test-result-action@v2
+      # Вытаскиваем историю прошлых запусков из ветки gh-pages для построения графиков трендов
+      - name: Get Allure History
+        uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
         with:
-          trx_files: "combined-results/**/*.trx"
-          comment_mode: always
-          compare_to_earlier_commit: true
+          ref: gh-pages
+          path: gh-pages
+
+      # Собираем Allure-отчет (Allure CLI автоматически подхватит и .trx, и файлы из allure-results)
+      - name: Build Allure Report
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        id: allure-report
+        with:
+          allure_results: combined-results
+          allure_history: allure-history
+          keep_reports: 20
+
+      # Публикуем веб-версию отчета в GitHub Pages
+      - name: Deploy Allure to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
+
+      # Сохраняем сгенерированный HTML-архив в артефакты запуска
+      - name: Upload Allure HTML Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-history
