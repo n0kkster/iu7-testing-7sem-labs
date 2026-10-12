@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-API_URL="${API_URL:-http://localhost:1555}"
+API_URL="${API_URL:-http://localhost:1666}"
 SUFFIX=$(head /dev/urandom | tr -dc a-z0-9 | head -c 6)
 
 ADMIN_USER="admin"
-ADMIN_PASS="admin123"
+ADMIN_PASS="AdminSecret123!"
 
 ARCH_USER="architect_${SUFFIX}"
 ARCH_EMAIL="arch_${SUFFIX}@corp.local"
@@ -38,7 +38,7 @@ echo "3. Выпуск инвайта для архитектора..."
 INVITE_CODE=$(curl -s -X POST "$API_URL/api/v2/teams/$TEAM_ID/invites" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -d "{\"email\":\"$ARCH_EMAIL\",\"validForDays\":7,\"role\":\"Architect\"}" | jq -r '.code')
+  -d "{\"email\":\"$ARCH_EMAIL\",\"validForDays\":7,\"role\":3}" | jq -r '.code')
 
 # 4. Регистрация архитектора
 echo "4. Регистрация архитектора..."
@@ -71,7 +71,7 @@ COMP2_ID=$(curl -s -X POST "$API_URL/api/v2/components" \
   -H "Authorization: Bearer $ARCH_TOKEN" \
   -d "{\"systemId\":\"$SYSTEM_ID\",\"type\":\"Database\",\"name\":\"Billing-DB\",\"description\":\"Postgres database\"}" | jq -r '.id')
 
-# 8. Создание зависимости (Link)
+# 8. Создание зависимости
 echo "8. Связывание компонентов..."
 curl -s -X POST "$API_URL/api/v2/links" \
   -H "Content-Type: application/json" \

@@ -20,7 +20,7 @@ test:
 		-p:CoverletOutput="../$(RESULTS_DIR)/"
 
 test-random:
-	@echo "=== Запуск со случайным порядком (Seed: $(SEED)) ==="
+	@echo "=== Запуск со случайным порядком, сид: $(SEED) ==="
 	dotnet test $(TEST_PROJECT) \
 		-p:CollectCoverage=true \
 		-p:CoverletOutputFormat=cobertura \
@@ -33,6 +33,10 @@ report: clean test
 		-targetdir:"$(REPORT_DIR)" \
 		-reporttypes:HtmlInline_AzurePipelines
 	@xdg-open $(REPORT_DIR)/index.html 2>/dev/null || echo "Отчет сгенерирован в $(REPORT_DIR)/index.html"
+
+test-offline:
+	unshare -r -n sh -c "ip link set lo up && dotnet test $(TEST_PROJECT) --no-restore"
+
 
 docker-test:
 	docker compose -f docker-compose.testing.yml build
@@ -47,8 +51,53 @@ docker-test-integration:
 docker-test-e2e:
 	docker compose -f docker-compose.testing.yml run --rm test-runner e2e
 
-test-offline:
-	unshare -r -n sh -c "ip link set lo up && dotnet test $(TEST_PROJECT) --no-restore"
+stand-up:
+	docker compose -f docker-compose.stand.yml up -d --build
+	@echo "Ожидание инициализации сервисов..."
+	@sleep 5
+	@echo "Тестовый стенд запущен на http://localhost:1666"
+
+stand-reset:
+	@./scripts/stand-reset.sh
+
+STAND_ENV = USE_STAND=true \
+            STAND_API_URL="http://localhost:1666" \
+            STAND_PG_CONNECTION="Host=localhost;Port=5439;Database=analyzer_stand_db;Username=postgres;Password=stand_password" \
+            STAND_NEO4J_URI="bolt://localhost:7689"
+
+stand-test:
+	@echo "=========================================="
+	@echo "1/2 Запуск интеграционных тестов на стенде"
+	@echo "=========================================="
+	$(STAND_ENV) dotnet test Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj \
+		--filter "FullyQualifiedName!~E2E"
+
+	@echo "=========================================="
+	@echo "2/2 Запуск E2E-тестов на стенде"
+	@echo "=========================================="
+	$(STAND_ENV) dotnet test Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj \
+		--filter "FullyQualifiedName~E2E"
+
+	@echo "=========================================="
+	@echo "Все стадии успешно выполнены на стенде!"
+	@echo "=========================================="
+
+stand-test-int:
+	@echo "=========================================="
+	@echo "Запуск интеграционных тестов на стенде"
+	@echo "=========================================="
+	$(STAND_ENV) dotnet test Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj \
+		--filter "FullyQualifiedName!~E2E"
+
+stand-test-e2e:
+	@echo "=========================================="
+	@echo "Запуск E2E-тестов на стенде"
+	@echo "=========================================="
+	$(STAND_ENV) VSTEST_HOST_DEBUG=1 dotnet test Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj \
+		--filter "FullyQualifiedName~E2E"
+
+stand-down:
+	docker compose -f docker-compose.stand.yml down -v
 
 capture-traffic:
 	@echo "=== Запуск захвата трафика ==="
@@ -57,7 +106,7 @@ capture-traffic:
 	./simulate-e2e.sh; \
 	sleep 1; \
 	sudo kill $$TCPDUMP_PID; \
-	echo "=== Захват завершен. Файл сохранен в traffic_dump.pcap ==="
+	echo "=== Захват завершен. ==="
 
 clean:
 	-rm -rf $(RESULTS_DIR)

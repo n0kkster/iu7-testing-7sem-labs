@@ -14,16 +14,20 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 [Collection("Database collection")]
-public class SystemAnalysisITCase : IClassFixture<SharedNeo4jFixture>, IDisposable
+public class SystemAnalysisITCase : IClassFixture<SharedNeo4jFixture>, IAsyncLifetime
 {
     private readonly IServiceScope _scope;
     private readonly ITeamRepository _teamRepository;
     private readonly ISystemService _systemService;
     private readonly IGraphService _graphService;
     private readonly IAnalysisService _analysisService;
+    private readonly SharedNeo4jFixture _neo4jFixture;
+
+    private readonly List<Guid> _trackedSystemIds = [];
 
     public SystemAnalysisITCase(SharedDatabaseFixture dbFixture, SharedNeo4jFixture neo4jFixture)
     {
+        _neo4jFixture = neo4jFixture;
         _scope = dbFixture.ServiceProvider.CreateScope();
 
         var systemRepository = _scope.ServiceProvider.GetRequiredService<ISystemRepository>();
@@ -37,8 +41,14 @@ public class SystemAnalysisITCase : IClassFixture<SharedNeo4jFixture>, IDisposab
         _systemService = new SystemService(_graphService, systemRepository);
     }
 
-    public void Dispose()
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public async Task DisposeAsync()
     {
+        foreach (var sysId in _trackedSystemIds)
+        {
+            await _neo4jFixture.WipeSystemDataAsync(sysId);
+        }
         _scope.Dispose();
     }
 
@@ -59,6 +69,8 @@ public class SystemAnalysisITCase : IClassFixture<SharedNeo4jFixture>, IDisposab
             Description = "Microservice analysis test system",
             TeamId = team.Id
         });
+
+        _trackedSystemIds.Add(systemId);
 
         // ====================================================================
         // ACT & ASSERT: ШАГ 1 — Построение микросервисной топологии в Neo4j

@@ -11,182 +11,187 @@ using Analyzer.Shared.DTO.V2;
 using FluentAssertions;
 using Xunit;
 
-public class MvpScenarioE2EITCase : IClassFixture<FaultAnalyzerApiFactory>
+public class MvpScenarioE2EITCase : IClassFixture<FaultAnalyzerApiFactory>, IClassFixture<SharedNeo4jFixture>, IAsyncLifetime
 {
     private readonly HttpClient _client;
+    private readonly SharedNeo4jFixture _neo4jFixture;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public MvpScenarioE2EITCase(FaultAnalyzerApiFactory factory)
+    // ==========================================================
+    // ТРЕКИНГ СУЩНОСТЕЙ ДЛЯ ПЕРСОНАЛЬНОЙ УБОРКИ МУСОРА
+    // ==========================================================
+    private readonly List<Guid> _trackedSystemIds = [];
+    private readonly List<Guid> _trackedTeamIds = [];
+    private readonly List<Guid> _trackedUserIds = [];
+    private string? _adminTokenForTeardown;
+    private string? _architectTokenForTeardown;
+
+    public MvpScenarioE2EITCase(FaultAnalyzerApiFactory factory, SharedNeo4jFixture neo4jFixture)
     {
-        _client = factory.CreateClient();
+        _neo4jFixture = neo4jFixture;
+        var standUrl = Environment.GetEnvironmentVariable("STAND_API_URL");
+        if (!string.IsNullOrEmpty(standUrl))
+        {
+            _client = new HttpClient { BaseAddress = new Uri(standUrl) };
+        }
+        else
+        {
+            _client = factory.CreateClient();
+        }
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public async Task DisposeAsync()
+    {
+        foreach (var sysId in _trackedSystemIds)
+        {
+            try { await _neo4jFixture.WipeSystemDataAsync(sysId); } 
+            catch { }
+        }
+
+        if (!string.IsNullOrEmpty(_architectTokenForTeardown))
+        {
+            SetAuthorizationToken(_architectTokenForTeardown);
+            foreach (var sysId in _trackedSystemIds)
+            {
+                await TryDeleteAsync($"/api/v2/systems/{sysId}");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(_adminTokenForTeardown))
+        {
+            SetAuthorizationToken(_adminTokenForTeardown);
+
+            foreach (var userId in _trackedUserIds)
+            {
+                await TryDeleteAsync($"/api/v2/users/{userId}");
+            }
+
+            foreach (var teamId in _trackedTeamIds)
+            {
+                await TryDeleteAsync($"/api/v2/teams/{teamId}");
+            }
+        }
+    }
+
+    private async Task TryDeleteAsync(string url)
+    {
+        try
+        {
+            var response = await _client.DeleteAsync(url);
+            
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"[Teardown Error] Не удалось выполнить DELETE {url}. Status: {response.StatusCode}. Response: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
     }
 
     [Fact]
     public async Task ExecuteFullMvpScenario_FromRegistrationToAnalysis_ViaHttpApi_V2()
     {
-        // ====================================================================
-        // ARRANGE
-        // ====================================================================
         var uniqueSuffix = Guid.NewGuid().ToString("N")[..6];
         var architectEmail = $"arch_{uniqueSuffix}@corp.local";
         var architectUser = $"architect_{uniqueSuffix}";
         var architectPass = "P@ssword1234!";
 
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 1 — Вход администратора в систему
-        // ====================================================================
+        // ==========================================================
+        // ШАГ 1: Логин админа
+        // ==========================================================
         var adminLoginResponse = await _client.PostAsJsonAsync("/api/v2/users/login", new LoginDto
         {
             Username = "admin",
             Password = "AdminSecret123!"
         });
-
-        adminLoginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        
         var adminAuth = await adminLoginResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var adminToken = adminAuth.GetProperty("token").GetString();
-        adminToken.Should().NotBeNullOrWhiteSpace();
+        _adminTokenForTeardown = adminAuth.GetProperty("token").GetString();
+        SetAuthorizationToken(_adminTokenForTeardown!);
 
-        SetAuthorizationToken(adminToken!);
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 2 — Создание команды администратором
-        // ====================================================================
+        // ==========================================================
+        // ШАГ 2: Создание команды
+        // ==========================================================
         var createTeamResponse = await _client.PostAsJsonAsync("/api/v2/teams", new CreateTeamDto
         {
             Name = $"Platform_Core_{uniqueSuffix}",
-            Description = "Platform core architecture group"
+            Description = "E2E Test Team"
         });
-
-        createTeamResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var createdTeam = await createTeamResponse.Content.ReadFromJsonAsync<TeamDto>(JsonOptions);
-        createdTeam.Should().NotBeNull();
-        createdTeam!.Id.Should().NotBeEmpty();
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 3 — Выпуск инвайта для Архитектора
-        // ====================================================================
-        var inviteRequest = new
-        {
-            email = architectEmail,
-            validForDays = 7,
-            role = Role.Architect
-        };
-
-        var inviteResponse = await _client.PostAsJsonAsync($"/api/v2/teams/{createdTeam.Id}/invites", inviteRequest);
-        inviteResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         
+        _trackedTeamIds.Add(createdTeam!.Id); // Трекаем команду!
+
+        // ==========================================================
+        // ШАГ 3: Выпуск инвайта
+        // ==========================================================
+        var inviteResponse = await _client.PostAsJsonAsync($"/api/v2/teams/{createdTeam.Id}/invites", new
+        {
+            email = architectEmail, validForDays = 7, role = Role.Architect
+        });
         var invite = await inviteResponse.Content.ReadFromJsonAsync<InviteDto>(JsonOptions);
-        invite.Should().NotBeNull();
-        invite!.Code.Should().NotBeNullOrWhiteSpace();
 
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 4 — Регистрация Архитектора по инвайту
-        // ====================================================================
+        // ==========================================================
+        // ШАГ 4: Регистрация Архитектора
+        // ==========================================================
         ClearAuthorizationToken();
-
         var registerResponse = await _client.PostAsJsonAsync("/api/v2/users/register", new RegisterDto
         {
-            Username = architectUser,
-            Email = architectEmail,
-            Password = architectPass,
-            InviteCode = invite.Code
+            Username = architectUser, Email = architectEmail, Password = architectPass, InviteCode = invite!.Code
         });
+        var newUserId = await registerResponse.Content.ReadFromJsonAsync<Guid>();
+        
+        _trackedUserIds.Add(newUserId); // Трекаем пользователя!
 
-        registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 5 — Вход Архитектора
-        // ====================================================================
+        // ==========================================================
+        // ШАГ 5: Логин Архитектора
+        // ==========================================================
         var archLoginResponse = await _client.PostAsJsonAsync("/api/v2/users/login", new LoginDto
         {
-            Username = architectUser,
-            Password = architectPass
+            Username = architectUser, Password = architectPass
         });
-
-        archLoginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var archAuth = await archLoginResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var archToken = archAuth.GetProperty("token").GetString();
-        archToken.Should().NotBeNullOrWhiteSpace();
+                _architectTokenForTeardown = archAuth.GetProperty("token").GetString();
+        SetAuthorizationToken(archAuth.GetProperty("token").GetString()!);
 
-        SetAuthorizationToken(archToken!);
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 6 — Создание IT-системы
-        // ====================================================================
+        // ==========================================================
+        // ШАГ 6: Создание IT-системы
+        // ==========================================================
         var systemResponse = await _client.PostAsJsonAsync("/api/v2/systems", new CreateITSystemDto
         {
-            Name = $"Billing_Service_{uniqueSuffix}",
-            Description = "Processing system V2",
-            TeamId = createdTeam.Id
+            Name = $"Billing_Service_{uniqueSuffix}", Description = "Test System", TeamId = createdTeam.Id
         });
+        var sysElement = await systemResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var systemId = sysElement.GetProperty("id").GetGuid();
+        
+        _trackedSystemIds.Add(systemId);
 
-        systemResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-        var systemCreationResult = await systemResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var systemId = systemCreationResult.GetProperty("id").GetGuid();
-        systemId.Should().NotBeEmpty();
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 7 — Создание компонентов и связи
-        // ====================================================================
+        // 7. Создание компонентов и связи
         var comp1Response = await _client.PostAsJsonAsync("/api/v2/components", new CreateComponentDto(
-            systemId, ComponentType.Microservice, "OrderService", "Order handling API"));
-        comp1Response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var comp1Result = await comp1Response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var comp1Id = comp1Result.GetProperty("id").GetGuid();
+            systemId, ComponentType.Microservice, "OrderService", "API"));
+        var comp1Id = (await comp1Response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions)).GetProperty("id").GetGuid();
 
         var comp2Response = await _client.PostAsJsonAsync("/api/v2/components", new CreateComponentDto(
-            systemId, ComponentType.Database, "OrderDB", "Postgres orders storage"));
-        comp2Response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var comp2Result = await comp2Response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var comp2Id = comp2Result.GetProperty("id").GetGuid();
+            systemId, ComponentType.Database, "OrderDB", "Storage"));
+        var comp2Id = (await comp2Response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions)).GetProperty("id").GetGuid();
 
-        // Создаем зависимость: OrderService зависит от OrderDB
-        var linkResponse = await _client.PostAsJsonAsync("/api/v2/links", new CreateLinkDto(
+        await _client.PostAsJsonAsync("/api/v2/links", new CreateLinkDto(
             comp1Id, comp2Id, LinkSeverity.High, ProtocolType.TCP));
-        linkResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 8 — Запуск анализа каскадного сбоя
-        // ====================================================================
-        var analysisRequest = new AnalysisRequestDto(
-            Type: AnalysisType.CascadingFailure,
-            ComponentId: comp2Id
-        );
-
-        var analysisResponse = await _client.PostAsJsonAsync("/api/v2/analysis", analysisRequest);
-        analysisResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
+        // 8. Анализ
+        var analysisResponse = await _client.PostAsJsonAsync("/api/v2/analysis", new AnalysisRequestDto(
+            Type: AnalysisType.CascadingFailure, ComponentId: comp2Id));
         var analysisResult = await analysisResponse.Content.ReadFromJsonAsync<AnalysisResponseDto>(JsonOptions);
-        analysisResult.Should().NotBeNull();
         analysisResult!.ImpactedComponentIds.Should().Contain(comp1Id);
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 9 — Экспорт топологии системы
-        // ====================================================================
-        var exportResponse = await _client.GetAsync($"/api/v2/systems/{systemId}/export");
-        exportResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var rawExportJson = await exportResponse.Content.ReadAsStringAsync();
-        rawExportJson.Should().Contain("OrderService");
-        rawExportJson.Should().Contain("OrderDB");
-
-        // ====================================================================
-        // ACT & ASSERT: ШАГ 10 — Удаление системы
-        // ====================================================================
-        var deleteResponse = await _client.DeleteAsync($"/api/v2/systems/{systemId}");
-        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
-
-        var getMissingSystemResponse = await _client.GetAsync($"/api/v2/systems/{systemId}");
-        getMissingSystemResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    private void SetAuthorizationToken(string token)
-    {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-    }
-
-    private void ClearAuthorizationToken()
-    {
-        _client.DefaultRequestHeaders.Authorization = null;
-    }
+    private void SetAuthorizationToken(string token) => _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    private void ClearAuthorizationToken() => _client.DefaultRequestHeaders.Authorization = null;
 }

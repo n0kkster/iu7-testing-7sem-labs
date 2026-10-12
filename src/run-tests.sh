@@ -51,7 +51,6 @@ case "$STAGE" in
         run_e2e
         ;;
     all)
-        # Требование 5 и 8: строгий порядок и остановка при падении
         run_unit
         run_integration
         run_e2e
