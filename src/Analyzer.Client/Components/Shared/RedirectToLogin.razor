@@ -6,6 +6,6 @@
     protected override void OnInitialized()
     {
         var returnUrl = Uri.EscapeDataString(NavManager.ToBaseRelativePath(NavManager.Uri));
-        NavManager.NavigateTo($"/login?returnUrl=/{returnUrl}", forceLoad: true);
+        NavManager.NavigateTo($"login?returnUrl=/{returnUrl}", forceLoad: true);
     }
 }

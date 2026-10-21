@@ -84,18 +84,26 @@ public partial class Home : ComponentBase, IDisposable
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdStr = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var user = authState.User;
+
+            if (user.IsInRole(Role.Admin.ToString()))
+            {
+                NavManager.NavigateTo("admin/users");
+                return;
+            }
+
+            var userIdStr = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             if (Guid.TryParse(userIdStr, out var userId))
             {
-                var user = await Http.GetFromJsonAsync<UserDto>($"api/v2/users/{userId}");
-                if (user is null)
+                var userDto = await Http.GetFromJsonAsync<UserDto>($"api/v2/users/{userId}");
+                if (userDto is null)
                 {
                     Log.Error("Ошибка получения профиля пользователя.");
                     NavManager.NavigateTo("/logout", forceLoad: true);
                     return;
                 }
-                _loggedUser = user;
+                _loggedUser = userDto;
 
                 _systems = await Http.GetFromJsonAsync<IReadOnlyCollection<ITSystemDto>>(
                     $"api/v2/systems?teamId={_loggedUser.TeamId}");

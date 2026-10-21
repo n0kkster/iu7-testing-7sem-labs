@@ -47,7 +47,7 @@
             <MudLink Underline="Underline.None" 
                      Typo="Typo.subtitle2" 
                      class="center-underline"
-                     Href="/register">
+                     Href="register">
                 Регистрация
             </MudLink>
         </MudText>
@@ -119,8 +119,8 @@
             });
 
         if (principal.IsInRole("Admin"))
-            NavManager.NavigateTo("/admin/users");
+            NavManager.NavigateTo("admin/users");
         else
-            NavManager.NavigateTo("/");
+            NavManager.NavigateTo("");
     }
 }

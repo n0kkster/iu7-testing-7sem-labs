@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
 using Analyzer.Client.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 
 // ============================================================================
 // 🔐 НАСТРОЙКА ЛОГГЕРА
@@ -63,6 +64,9 @@ try
 
     // 🔹 CascadingAuthenticationState — обязателен для работы [Authorize] в компонентах
     builder.Services.AddCascadingAuthenticationState();
+
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/app/keys"));
 
     // ============================================================================
     // 🔐 3. КАСТОМНЫЕ СЕРВИСЫ АУТЕНТИФИКАЦИИ
@@ -135,6 +139,16 @@ try
     
     var app = builder.Build();
 
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.All
+    };
+    forwardedOptions.KnownIPNetworks.Clear();
+    forwardedOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedOptions);
+
+    app.UsePathBase("/legacy");
+    
     // ============================================================================
     // 🔐 6. MIDDLEWARE PIPELINE
     // ============================================================================
@@ -145,7 +159,7 @@ try
         app.UseHsts();
     }
 
-    app.UseHttpsRedirection();
+    // app.UseHttpsRedirection();
     
     // Статические файлы
     app.MapStaticAssets();
@@ -174,7 +188,7 @@ try
     app.MapGet("/logout", async (HttpContext ctx) =>
     {
         await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Results.Redirect("/login");
+        return Results.Redirect("/legacy/login");
     });
 
     // ============================================================================

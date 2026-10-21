@@ -44,14 +44,14 @@
                 </MudAvatar>
             </ActivatorContent>
             <ChildContent>
-                <MudMenuItem Href="/me" 
+                <MudMenuItem Href="me" 
                              Icon="@Icons.Material.Filled.Person">
                     Мой профиль
                 </MudMenuItem>
                 
                 <MudDivider Class="my-1" />
                 
-                <MudMenuItem Href="/logout" 
+                <MudMenuItem Href="logout" 
                              Icon="@Icons.Material.Filled.Logout" 
                              IconColor="Color.Error">
                     Выйти
@@ -62,8 +62,8 @@
 
     <MudDrawer Open="true" Elevation="1" Variant="@DrawerVariant.Persistent" ClipMode="DrawerClipMode.Always">
         <MudNavMenu Class="pt-4">
-            <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People" Match="NavLinkMatch.All">Пользователи</MudNavLink>
-            <MudNavLink Href="/admin/teams" Icon="@Icons.Material.Filled.Groups" Match="NavLinkMatch.All">Команды и Инвайты</MudNavLink>
+            <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.People" Match="NavLinkMatch.All">Пользователи</MudNavLink>
+            <MudNavLink Href="admin/teams" Icon="@Icons.Material.Filled.Groups" Match="NavLinkMatch.All">Команды и Инвайты</MudNavLink>
         </MudNavMenu>
     </MudDrawer>
 
@@ -196,6 +196,6 @@
 
     private void Logout()
     {
-        NavManager.NavigateTo("/logout", forceLoad: true);
+        NavManager.NavigateTo("logout", forceLoad: true);
     }
 }

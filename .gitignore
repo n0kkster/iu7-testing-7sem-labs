@@ -311,3 +311,6 @@ misc/
 appsettings*.json
 
 coveragereport/
+
+.frontend
+.htpasswd

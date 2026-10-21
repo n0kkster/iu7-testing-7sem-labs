@@ -5,6 +5,7 @@ COPY ["Analyzer.Api/Analyzer.Api.csproj", "Analyzer.Api/"]
 COPY ["Analyzer.Application/Analyzer.Application.csproj", "Analyzer.Application/"]
 COPY ["Analyzer.Infrastructure/Analyzer.Infrastructure.csproj", "Analyzer.Infrastructure/"]
 COPY ["Analyzer.Shared/Analyzer.Shared.csproj", "Analyzer.Shared/"]
+COPY ["Analyzer.Domain/Analyzer.Domain.csproj", "Analyzer.Domain/"]
 
 RUN dotnet restore "Analyzer.Api/Analyzer.Api.csproj"
 

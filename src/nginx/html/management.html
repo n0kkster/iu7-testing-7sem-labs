@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления — FaultAnalyzer</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 40px 20px; background: #0f172a; color: #f8fafc; line-height: 1.6; }
+        .container { max-width: 880px; margin: 0 auto; }
+        h1 { margin-top: 0; color: #38bdf8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-top: 24px; }
+        .card { background: #1e293b; padding: 24px; border-radius: 12px; border: 1px solid #334155; }
+        .card h2 { margin-top: 0; font-size: 1.25rem; color: #f1f5f9; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        a { color: #38bdf8; text-decoration: none; font-weight: 500; }
+        a:hover { text-decoration: underline; }
+        .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+        .tag-public { background: #065f46; color: #6ee7b7; }
+        .tag-auth { background: #991b1b; color: #fca5a5; }
+        .tag-admin { background: #854d0e; color: #fef08a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Служебная панель управления</h1>
+        <p>Быстрая навигация по всем доступным ресурсам, точкам входа и мониторингу веб-сервера.</p>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Пользовательские интерфейсы</h2>
+                <ul>
+                    <li><a href="/">/ (Главная страница)</a> <span class="tag tag-public">Public</span></li>
+                    <li><a href="/reserved/">/reserved/ (Резервный маршрут)</a> <span class="tag tag-public">Public</span></li>
+                    <li><a href="/legacy">/legacy</a> <span class="tag tag-public">Public</span></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Документация и API</h2>
+                <ul>
+                    <li><a href="/documentation">/documentation (README.md)</a> <span class="tag tag-public">Markdown</span></li>
+                    <li><a href="/api/v1/docs">/api/v1/docs (Swagger UI V1)</a> <span class="tag tag-public">Legacy API</span></li>
+                    <li><a href="/api/v2/docs">/api/v2/docs (Swagger UI V2)</a> <span class="tag tag-public">Current API</span></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Базы данных и Администрирование</h2>
+                <ul>
+                    <li><a href="/admin/">/admin/ (pgAdmin Веб-консоль)</a> <span class="tag tag-admin">Basic Auth</span></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Мониторинг и Диагностика</h2>
+                <ul>
+                    <li><a href="/status">/status</a> <span class="tag tag-public">Metrics</span></li>
+                    <li><a href="/health">/health</a> <span class="tag tag-public">Probe</span></li>
+                    <li><a href="/ready">/ready</a> <span class="tag tag-public">Probe</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -28,7 +28,7 @@ public class ErrorHandler(ISnackbar snackbar, NavigationManager navManager) : De
                 if (response.StatusCode == HttpStatusCode.Unauthorized) // 401
                 {
                     errorMessage = "Сессия истекла или вы не авторизованы. Пожалуйста, войдите заново.";
-                    navManager.NavigateTo($"/login", forceLoad: true);
+                    navManager.NavigateTo($"login", forceLoad: true);
                 }
                 else if (response.StatusCode == HttpStatusCode.Forbidden) // 403
                 {

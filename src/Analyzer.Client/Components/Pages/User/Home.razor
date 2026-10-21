@@ -1,7 +1,7 @@
 ﻿@page "/"
 @using Analyzer.Client.Components.Panels
 
-@attribute [Authorize(Roles = "Developer, Architect, SRE")]
+@attribute [Authorize(Roles = "Developer, Architect, SRE, Admin")]
 
 <SectionContent SectionName="TopbarSystemSelect">
     <MudSelect T="Guid?" 

@@ -84,6 +84,8 @@ services:
       - "${PORT_FRONT}:8080"
     depends_on:
       - api-ppo
+    volumes:
+      - ./.frontend/keys:/app/keys
     restart: on-failure
     profiles: ["production"]
 
@@ -98,9 +100,43 @@ services:
     restart: on-failure
     profiles: ["mock", "tools"]
 
+  pgadmin-ppo:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin-ppo
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@analyzer.ru"
+      PGADMIN_DEFAULT_PASSWORD: "admin123"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - pgadmin-ppo-data:/var/lib/pgadmin
+    depends_on:
+      - postgres-ppo
+    restart: on-failure
+    profiles: ["postgres", "production"]
+
+  nginx-ppo:
+    image: nginx:alpine
+    container_name: nginx-ppo
+    ports:
+      - "${PORT_HTTP:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ../README.md:/usr/share/nginx/docs/README.md:ro
+    depends_on:
+      - api-ppo
+      - pgadmin-ppo
+      - frontend-ppo
+    restart: on-failure
+    profiles: ["production"]
+
 volumes:
   postgres-ppo-data:
     name: postgres-ppo-data
   mongo-ppo-data:
     name: mongo-ppo-data
   seq-ppo-data:
+  pgadmin-ppo-data:
+    name: pgadmin-ppo-data
