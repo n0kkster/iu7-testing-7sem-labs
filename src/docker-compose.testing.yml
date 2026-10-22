@@ -1,0 +1,13 @@
+services:
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.testing
+    container_name: analyzer-test-runner
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Testing
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - TESTCONTAINERS_RYUK_DISABLED=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./TestResults:/app/TestResults

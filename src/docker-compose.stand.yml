@@ -1,0 +1,69 @@
+services:
+  stand-postgres:
+    image: postgres:17-alpine
+    container_name: analyzer-stand-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: stand_password
+      POSTGRES_DB: analyzer_stand_db
+    ports:
+      - "5439:5432"
+    restart: unless-stopped
+
+  stand-neo4j:
+    image: neo4j:latest
+    container_name: analyzer-stand-neo4j
+    environment:
+      NEO4J_AUTH: "none"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    ports:
+      - "7479:7474"
+      - "7689:7687"
+    restart: unless-stopped
+
+  seq-ppo:
+    image: datalust/seq:latest
+    container_name: analyzer-stand-seq
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: true
+    ports:
+      - "5341:80"
+    volumes:
+      - seq-stand-data:/data
+    restart: unless-stopped
+
+  stand-api:
+    build:
+      context: .
+      dockerfile: Analyzer.Api/Dockerfile
+    container_name: analyzer-stand-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Testing
+      DatabaseProvider: Postgres
+      ConnectionStrings__PGConnection: "Host=stand-postgres;Port=5432;Database=analyzer_stand_db;Username=postgres;Password=stand_password"
+      Neo4jSettings__Uri: "bolt://stand-neo4j:7687"
+      Jwt__Key: "SuperSecretTestingKeyForJwtSigning1234567890!"
+      Jwt__Issuer: "FaultAnalyzer"
+      Jwt__Audience: "FaultAnalyzerAudience"
+      Jwt__ExpireMinutes: "60"
+      AdminSettings__Username: "admin"
+      AdminSettings__Password: "AdminSecret123!"
+      AdminSettings__Email: "admin@analyzer.local"
+
+      Serilog__WriteTo__0__Name: "Console"
+      Serilog__WriteTo__1__Name: "Seq"
+      Serilog__WriteTo__1__Args__serverUrl: "http://seq-ppo:80"
+    ports:
+      - "1666:8080"
+    depends_on:
+      - stand-postgres
+      - stand-neo4j
+      - seq-ppo
+    restart: unless-stopped
+
+volumes:
+  seq-stand-data:
