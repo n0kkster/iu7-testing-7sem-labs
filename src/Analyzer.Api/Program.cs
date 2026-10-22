@@ -7,6 +7,8 @@ using Analyzer.Application.Services;
 using Analyzer.Infrastructure.Data;
 using Analyzer.Infrastructure.Persistence;
 using Analyzer.Infrastructure.Providers;
+using Analyzer.Api.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -112,6 +114,10 @@ try
     builder.Services.AddScoped<IInviteService, InviteService>();
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IAvatarService, AvatarService>();
+
+    builder.Services.AddHealthChecks()
+        .AddCheck<PostgresHealthCheck>("Postgres")
+        .AddCheck<Neo4jHealthCheck>("Neo4j");
 
     // ============================================================================
     // 🔐 4. АУТЕНТИФИКАЦИЯ И БЕЗОПАСНОСТЬ
@@ -250,6 +256,16 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.MapHealthChecks("/api/health/live", new HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
+    app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
+    {
+        Predicate = _ => true 
+    });
 
     // Маппинг контроллеров
     app.MapControllers();
