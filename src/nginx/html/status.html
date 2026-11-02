@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Статус сервера NGINX</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .dashboard { max-width: 1000px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        button {
+            background-color: #4f46e5; color: white; border: none; padding: 10px 20px;
+            border-radius: 8px; cursor: pointer; font-weight: bold; transition: background-color 0.2s;
+        }
+        button:hover { background-color: #4338ca; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card {
+            background-color: #16213e; border-radius: 12px; padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); border-top: 4px solid #4a5568;
+        }
+        .card.active { border-top-color: #48bb78; }
+        .card h3 { margin: 0 0 15px 0; color: #a0aec0; font-size: 1.1rem; }
+        .card .value { font-size: 2.5rem; font-weight: bold; color: #fff; }
+        .card p { margin: 10px 0 0 0; font-size: 0.9rem; color: #718096; }
+        .error { background-color: #c53030; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>Мониторинг веб-сервера</h1>
+            <button onclick="fetchStatus()">Обновить</button>
+        </header>
+        
+        <div id="error-box" class="error hidden"></div>
+
+        <div class="grid">
+            <div class="card active">
+                <h3>Активные соединения</h3>
+                <div class="value" id="active-conn">-</div>
+            </div>
+            <div class="card">
+                <h3>Обработано запросов</h3>
+                <div class="value" id="total-req">-</div>
+            </div>
+            <div class="card">
+                <h3>Чтение (Reading)</h3>
+                <div class="value" id="reading">-</div>
+                <p>Чтение заголовков от клиента</p>
+            </div>
+            <div class="card">
+                <h3>Запись (Writing)</h3>
+                <div class="value" id="writing">-</div>
+                <p>Отправка данных клиенту</p>
+            </div>
+            <div class="card">
+                <h3>Ожидание (Waiting)</h3>
+                <div class="value" id="waiting">-</div>
+                <p>Keep-alive соединения</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStatus() {
+            const errorBox = document.getElementById('error-box');
+            errorBox.classList.add('hidden');
+            try {
+                const response = await fetch('/nginx_status');
+                if (!response.ok) throw new Error('Сервер вернул ошибку ' + response.status);
+                const text = await response.text();
+                parseStatus(text);
+            } catch (err) {
+                errorBox.textContent = `Ошибка: ${err.message}`;
+                errorBox.classList.remove('hidden');
+            }
+        }
+
+        function parseStatus(text) {
+            const lines = text.trim().split('\n');
+            const activeMatch = lines[0].match(/Active connections:\s+(\d+)/);
+            if (activeMatch) document.getElementById('active-conn').textContent = activeMatch[1];
+
+            const metrics = lines[2].trim().split(/\s+/);
+            if (metrics.length >= 3) document.getElementById('total-req').textContent = metrics[2];
+
+            const rwwMatch = lines[3].match(/Reading:\s+(\d+)\s+Writing:\s+(\d+)\s+Waiting:\s+(\d+)/);
+            if (rwwMatch) {
+                document.getElementById('reading').textContent = rwwMatch[1];
+                document.getElementById('writing').textContent = rwwMatch[2];
+                document.getElementById('waiting').textContent = rwwMatch[3];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchStatus);
+    </script>
+</body>
+</html>

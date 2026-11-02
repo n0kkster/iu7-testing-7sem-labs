@@ -125,6 +125,7 @@ services:
       - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
       - ./nginx/html:/usr/share/nginx/html:ro
       - ../README.md:/usr/share/nginx/docs/README.md:ro
+      - ../docs:/usr/share/nginx/docs_dir:ro
     depends_on:
       - api-ppo
       - pgadmin-ppo
