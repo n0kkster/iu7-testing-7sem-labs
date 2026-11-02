@@ -108,6 +108,22 @@ capture-traffic:
 	sudo kill $$TCPDUMP_PID; \
 	echo "=== Захват завершен. ==="
 
+docker-benchmark-build:
+	docker build -f Dockerfile.benchmark -t analyzer-benchmark .
+
+docker-benchmark-run:
+	@mkdir -p results plots
+	docker run --rm \
+		--cpuset-cpus=2 \
+		--memory=1g \
+		-e DOTNET_TieredCompilation=0 \
+		-v $$(pwd)/results:/app/results \
+		analyzer-benchmark
+
+benchmark: docker-benchmark-build docker-benchmark-run
+	@echo "=== Построение графиков ==="
+	python scripts/plot-bench.py
+
 clean:
 	-rm -rf $(RESULTS_DIR)
 	-rm -rf $(REPORT_DIR)
