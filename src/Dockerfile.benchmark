@@ -1,0 +1,22 @@
+ARG DOTNET_VERSION=10.0
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
+WORKDIR /src
+
+COPY . .
+
+ENV DOTNET_TieredCompilation=0
+
+RUN dotnet publish Analyzer.Benchmarks/Analyzer.Benchmarks.csproj \
+    -c Release \
+    -o /app/publish \
+    /p:DebugType=None \
+    /p:DebugSymbols=false
+
+FROM mcr.microsoft.com/dotnet/runtime:${DOTNET_VERSION}
+WORKDIR /app
+
+RUN mkdir -p /app/results
+
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "Analyzer.Benchmarks.dll"]

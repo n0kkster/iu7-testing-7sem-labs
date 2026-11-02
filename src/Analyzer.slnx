@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="Analyzer.Api/Analyzer.Api.csproj" />
   <Project Path="Analyzer.Application/Analyzer.Application.csproj" />
+  <Project Path="Analyzer.Benchmarks/Analyzer.Benchmarks.csproj" />
   <Project Path="Analyzer.Client/Analyzer.Client.csproj" />
   <Project Path="Analyzer.Domain/Analyzer.Domain.csproj" />
   <Project Path="Analyzer.Infrastructure/Analyzer.Infrastructure.csproj" />
