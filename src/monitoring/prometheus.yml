@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'analyzer-api'
+    static_configs:
+      - targets: ['api-ppo:8080', 'api-ppo-read1:8080', 'api-ppo-read2:8080', 'api-ppo-mirror:8080']

@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Neo4j.Driver;
 using Serilog;
+using OpenTelemetry.Metrics;
 
 using Postgres = Analyzer.Infrastructure.Persistence.Postgres;
 using Mongo = Analyzer.Infrastructure.Persistence.Mongo;
@@ -119,6 +120,13 @@ try
     builder.Services.AddHealthChecks()
         .AddCheck<PostgresHealthCheck>("Postgres")
         .AddCheck<Neo4jHealthCheck>("Neo4j");
+
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddAspNetCoreInstrumentation();
+            metrics.AddPrometheusExporter();
+        });
 
     // ============================================================================
     // 🔐 4. АУТЕНТИФИКАЦИЯ И БЕЗОПАСНОСТЬ
@@ -267,6 +275,8 @@ try
     {
         Predicate = _ => true 
     });
+
+    app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
     // Маппинг контроллеров
     app.MapControllers();

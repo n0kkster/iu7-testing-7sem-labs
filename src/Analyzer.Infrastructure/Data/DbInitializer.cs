@@ -19,6 +19,12 @@ public static class DatabaseInitializer
 
         try
         {
+            if (configuration["RUN_MIGRATIONS"] == "false")
+            {
+                Log.Information("Пропуск миграций БД.");
+                return;
+            }
+
             if (dbProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
             {
                 var context = scope.ServiceProvider.GetRequiredService<AnalyzerDbContext>();

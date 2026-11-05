@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Analyzer.Api.Middlewares;
 
@@ -40,6 +42,13 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private static (int StatusCode, string Title) MapExceptionToStatusCode(Exception exception)
     {
+        if (exception is DbUpdateException dbEx && 
+            dbEx.InnerException is PostgresException pgEx && 
+            pgEx.SqlState == "25006")
+        {
+            return (StatusCodes.Status405MethodNotAllowed, "Ошибка записи: Узел работает только на чтение");
+        }
+        
         return exception switch
         {
             ArgumentException => (StatusCodes.Status400BadRequest, "Ошибка валидации данных"),

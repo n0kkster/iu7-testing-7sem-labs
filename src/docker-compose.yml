@@ -18,17 +18,39 @@ services:
     restart: on-failure
 
   postgres-ppo:
-    image: postgres:17-alpine
+    image: bitnami/postgresql:latest
     container_name: postgres-ppo
     environment:
-      POSTGRES_USER: "${POSTGRES_LOGIN}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-      POSTGRES_DB: "${POSTGRES_DB_NAME}"
+      POSTGRESQL_POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRESQL_USERNAME: "${POSTGRES_LOGIN}"
+      POSTGRESQL_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRESQL_DATABASE: "${POSTGRES_DB_NAME}"
+      POSTGRESQL_REPLICATION_MODE: master
+      POSTGRESQL_REPLICATION_USER: repl_user
+      POSTGRESQL_REPLICATION_PASSWORD: repl_password
     ports:
       - "${PORT_POSTGRES}:5432"
     volumes:
-      - postgres-ppo-data:/var/lib/postgresql/data
-      - ./.postgres/data:/data
+      - postgres-ppo-data:/bitnami/postgresql
+    restart: on-failure
+    profiles: ["postgres", "migration"]
+
+  postgres-replica:
+    image: bitnami/postgresql:latest
+    container_name: postgres-replica
+    environment:
+      POSTGRESQL_POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRESQL_USERNAME: "${POSTGRES_LOGIN}"
+      POSTGRESQL_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRESQL_DATABASE: "${POSTGRES_DB_NAME}"
+      POSTGRESQL_REPLICATION_MODE: slave
+      POSTGRESQL_REPLICATION_USER: repl_user
+      POSTGRESQL_REPLICATION_PASSWORD: repl_password
+      POSTGRESQL_MASTER_HOST: postgres-ppo
+    volumes:
+      - postgres-replica-data:/bitnami/postgresql
+    depends_on:
+      - postgres-ppo
     restart: on-failure
     profiles: ["postgres", "migration"]
 
@@ -73,6 +95,51 @@ services:
     restart: on-failure
     profiles: ["production"]
 
+  api-ppo-read1:
+    build:
+      context: .
+      dockerfile: Analyzer.Api/Dockerfile
+    container_name: analyzer-api-read1
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Docker"
+      DatabaseProvider: "${DATABASE_PROVIDER}"
+      RUN_MIGRATIONS: "false" 
+      ConnectionStrings__PGConnection: "Host=postgres-replica;Port=5432;Database=${POSTGRES_DB_NAME};Username=${POSTGRES_LOGIN};Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      - postgres-replica
+      - neo4j-ppo
+    restart: on-failure
+
+  api-ppo-read2:
+    build:
+      context: .
+      dockerfile: Analyzer.Api/Dockerfile
+    container_name: analyzer-api-read2
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Docker"
+      DatabaseProvider: "${DATABASE_PROVIDER}"
+      RUN_MIGRATIONS: "false" 
+      ConnectionStrings__PGConnection: "Host=postgres-replica;Port=5432;Database=${POSTGRES_DB_NAME};Username=${POSTGRES_LOGIN};Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      - postgres-replica
+      - neo4j-ppo
+    restart: on-failure
+
+  api-ppo-mirror:
+    build:
+      context: .
+      dockerfile: Analyzer.Api/Dockerfile
+    container_name: analyzer-api-mirror
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Docker"
+      DatabaseProvider: "${DATABASE_PROVIDER}"
+      RUN_MIGRATIONS: "false" 
+      ConnectionStrings__PGConnection: "Host=postgres-ppo;Port=5432;Database=${POSTGRES_DB_NAME};Username=${POSTGRES_LOGIN};Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      - postgres-ppo
+      - neo4j-ppo
+    restart: on-failure
+
   frontend-ppo:
     build:
       context: .
@@ -88,6 +155,21 @@ services:
       - ./.frontend/keys:/app/keys
     restart: on-failure
     profiles: ["production"]
+
+  frontend-ppo-mirror:
+    build:
+      context: .
+      dockerfile: Analyzer.Client/Dockerfile
+    container_name: analyzer-web-mirror
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Docker"
+      PathBase: "/mirror"
+      ApiBaseUrl: "http://api-ppo-mirror:8080"
+    depends_on:
+      - api-ppo-mirror
+    volumes:
+      - ./.frontend/mirror/keys:/app/keys
+    restart: on-failure
 
   prism-mock:
     image: stoplight/prism:5
@@ -133,11 +215,52 @@ services:
     restart: on-failure
     profiles: ["production"]
 
+  prometheus-ppo:
+    image: prom/prometheus:latest
+    container_name: prometheus-ppo
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: on-failure
+
+  loki-ppo:
+    image: grafana/loki:latest
+    container_name: loki-ppo
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: on-failure
+
+  promtail-ppo:
+    image: grafana/promtail:latest
+    container_name: promtail-ppo
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    restart: on-failure
+
+  grafana-ppo:
+    image: grafana/grafana:latest
+    container_name: grafana-ppo
+    environment:
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/monitoring/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus-ppo
+      - loki-ppo
+    restart: on-failure
+
 volumes:
   postgres-ppo-data:
     name: postgres-ppo-data
+  postgres-replica-data:
+    name: postgres-replica-data
   mongo-ppo-data:
     name: mongo-ppo-data
   seq-ppo-data:
   pgadmin-ppo-data:
     name: pgadmin-ppo-data
+  grafana-data:

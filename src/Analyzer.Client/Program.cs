@@ -147,7 +147,8 @@ try
     forwardedOptions.KnownProxies.Clear();
     app.UseForwardedHeaders(forwardedOptions);
 
-    app.UsePathBase("/legacy");
+    var pathBase = builder.Configuration["PathBase"] ?? "/legacy";
+    app.UsePathBase(pathBase);
     
     // ============================================================================
     // 🔐 6. MIDDLEWARE PIPELINE
