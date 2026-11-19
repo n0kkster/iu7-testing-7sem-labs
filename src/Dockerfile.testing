@@ -18,12 +18,14 @@ WORKDIR /app
 COPY . .
 
 RUN dotnet restore Analyzer.Tests/Analyzer.Tests.csproj && \
-    dotnet restore Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj
+    dotnet restore Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj && \
+    dotnet restore Analyzer.BddTests/Analyzer.BddTests.csproj
 
 RUN chmod +x run-tests.sh
 
 RUN dotnet build Analyzer.Tests/Analyzer.Tests.csproj --configuration Release --no-restore && \
-    dotnet build Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj --configuration Release --no-restore
-
+    dotnet build Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj --configuration Release --no-restore && \
+    dotnet build Analyzer.BddTests/Analyzer.BddTests.csproj --configuration Release --no-restore
+    
 ENTRYPOINT ["./run-tests.sh"]
 CMD ["all"]

@@ -3,6 +3,7 @@ namespace Analyzer.Api.Controllers.V2;
 using System.Security.Claims;
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Shared.DTO.Common;
+using Analyzer.Shared.DTO.V2;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,8 +34,8 @@ public class UsersController(IUserService userService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var token = await _userService.LoginAsync(dto);
-        return Ok(new { token });
+        var result = await _userService.AuthenticateAsync(dto);
+        return Ok(result);
     }
 
     [Authorize(Roles = "Admin")]
@@ -96,6 +97,35 @@ public class UsersController(IUserService userService) : ControllerBase
     public async Task<IActionResult> DeleteUser(Guid id)
     {
         await _userService.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [HttpPost("verify-2fa")]
+    public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorDto dto)
+    {
+        var token = await _userService.VerifyTwoFactorAsync(dto);
+        return Ok(new { Token = token });
+    }
+
+    [HttpPost("request-unlock")]
+    public async Task<IActionResult> RequestUnlock([FromBody] RequestUnlockDto dto)
+    {
+        await _userService.RequestUnlockAsync(dto);
+        return Ok(new { Message = "Код разблокировки отправлен на email." });
+    }
+
+    [HttpPost("confirm-unlock")]
+    public async Task<IActionResult> ConfirmUnlock([FromBody] ConfirmUnlockDto dto)
+    {
+        await _userService.ConfirmUnlockAsync(dto);
+        return Ok(new { Message = "Аккаунт успешно разблокирован." });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id:guid}/2fa")]
+    public async Task<IActionResult> SetTwoFactor(Guid id, [FromBody] ToggleTwoFactorDto dto)
+    {
+        await _userService.SetTwoFactorAsync(id, dto.Enabled);
         return NoContent();
     }
 }

@@ -17,12 +17,12 @@ namespace Analyzer.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.Avatar", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.AvatarEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -65,7 +65,7 @@ namespace Analyzer.Infrastructure.Migrations
                     b.ToTable("avatars", (string)null);
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.ITSystem", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.ITSystemEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -104,7 +104,7 @@ namespace Analyzer.Infrastructure.Migrations
                     b.ToTable("it_systems", (string)null);
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.Invite", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.InviteEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -157,7 +157,7 @@ namespace Analyzer.Infrastructure.Migrations
                     b.ToTable("invites", (string)null);
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.Team", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.TeamEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -180,7 +180,7 @@ namespace Analyzer.Infrastructure.Migrations
                     b.ToTable("teams", (string)null);
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.User", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.UserEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -196,6 +196,18 @@ namespace Analyzer.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("email");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_login_attempts");
+
+                    b.Property<bool>("IsTwoFactorEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_two_factor_enabled");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lockout_end");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text")
@@ -208,6 +220,22 @@ namespace Analyzer.Infrastructure.Migrations
                     b.Property<Guid?>("TeamId")
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
+
+                    b.Property<string>("TwoFactorCode")
+                        .HasColumnType("text")
+                        .HasColumnName("two_factor_code");
+
+                    b.Property<DateTimeOffset?>("TwoFactorCodeExpiry")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("two_factor_code_expiry");
+
+                    b.Property<string>("UnlockCode")
+                        .HasColumnType("text")
+                        .HasColumnName("unlock_code");
+
+                    b.Property<DateTimeOffset?>("UnlockCodeExpiry")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unlock_code_expiry");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -234,55 +262,81 @@ namespace Analyzer.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.Avatar", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.AvatarEntity", b =>
                 {
-                    b.HasOne("Analyzer.Domain.Entities.User", null)
+                    b.HasOne("Analyzer.Infrastructure.Data.Entities.UserEntity", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_avatars_users_user_id");
+
+                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.ITSystem", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.ITSystemEntity", b =>
                 {
-                    b.HasOne("Analyzer.Domain.Entities.Team", null)
-                        .WithMany()
+                    b.HasOne("Analyzer.Infrastructure.Data.Entities.TeamEntity", "Team")
+                        .WithMany("Systems")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_it_systems_teams_team_id");
+
+                    b.Navigation("Team");
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.Invite", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.InviteEntity", b =>
                 {
-                    b.HasOne("Analyzer.Domain.Entities.User", null)
-                        .WithMany()
+                    b.HasOne("Analyzer.Infrastructure.Data.Entities.UserEntity", "ActivatedByUser")
+                        .WithMany("ActivatedInvites")
                         .HasForeignKey("ActivatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_invites_users_activated_by_user_id");
 
-                    b.HasOne("Analyzer.Domain.Entities.Team", null)
-                        .WithMany()
+                    b.HasOne("Analyzer.Infrastructure.Data.Entities.TeamEntity", "Team")
+                        .WithMany("Invites")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_invites_teams_team_id");
+
+                    b.Navigation("ActivatedByUser");
+
+                    b.Navigation("Team");
                 });
 
-            modelBuilder.Entity("Analyzer.Domain.Entities.User", b =>
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.UserEntity", b =>
                 {
-                    b.HasOne("Analyzer.Domain.Entities.Avatar", null)
+                    b.HasOne("Analyzer.Infrastructure.Data.Entities.AvatarEntity", "Avatar")
                         .WithMany()
                         .HasForeignKey("AvatarId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_users_avatars_avatar_id");
 
-                    b.HasOne("Analyzer.Domain.Entities.Team", null)
-                        .WithMany()
+                    b.HasOne("Analyzer.Infrastructure.Data.Entities.TeamEntity", "Team")
+                        .WithMany("Members")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_users_teams_team_id");
+
+                    b.Navigation("Avatar");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.TeamEntity", b =>
+                {
+                    b.Navigation("Invites");
+
+                    b.Navigation("Members");
+
+                    b.Navigation("Systems");
+                });
+
+            modelBuilder.Entity("Analyzer.Infrastructure.Data.Entities.UserEntity", b =>
+                {
+                    b.Navigation("ActivatedInvites");
                 });
 #pragma warning restore 612, 618
         }

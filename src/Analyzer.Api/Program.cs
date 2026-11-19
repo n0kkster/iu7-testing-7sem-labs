@@ -107,6 +107,7 @@ try
     // ============================================================================
 
     builder.Services.AddScoped<IJwtProvider, JwtProvider>();
+    builder.Services.AddScoped<IEmailProvider, SmtpEmailProvider>();
     builder.Services.AddScoped<IImageProvider, ImageSharpImageProvider>();
 
     builder.Services.AddScoped<IGraphService, GraphService>();

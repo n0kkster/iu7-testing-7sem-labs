@@ -52,6 +52,14 @@ public class UserRepository(AnalyzerDbContext context) : IUserRepository
             entity.TeamId = user.TeamId;
             entity.AvatarId = user.AvatarId;
 
+            entity.IsTwoFactorEnabled = user.IsTwoFactorEnabled;
+            entity.FailedLoginAttempts = user.FailedLoginAttempts;
+            entity.LockoutEnd = user.LockoutEnd;
+            entity.TwoFactorCode = user.TwoFactorCode;
+            entity.TwoFactorCodeExpiry = user.TwoFactorCodeExpiry;
+            entity.UnlockCode = user.UnlockCode;
+            entity.UnlockCodeExpiry = user.UnlockCodeExpiry;
+
             await _context.SaveChangesAsync();
         }
     }

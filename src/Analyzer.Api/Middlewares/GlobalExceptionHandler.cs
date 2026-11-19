@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Analyzer.Domain.Exceptions;
 
 namespace Analyzer.Api.Middlewares;
 
@@ -16,7 +17,8 @@ public class GlobalExceptionHandler : IExceptionHandler
         if (exception is not ArgumentException && 
             exception is not InvalidOperationException && 
             exception is not KeyNotFoundException &&
-            exception is not UnauthorizedAccessException)
+            exception is not UnauthorizedAccessException &&
+            exception is not AccountLockedException)
         {
             var requestPath = $"{httpContext.Request.Method} {httpContext.Request.Path}";
             Log.Error(exception, "Критическая ошибка при выполнении запроса: {RequestPath}", requestPath);
@@ -55,6 +57,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             InvalidOperationException => (StatusCodes.Status400BadRequest, "Нарушение бизнес-правила"),
             KeyNotFoundException => (StatusCodes.Status404NotFound, "Ресурс не найден"),
             UnauthorizedAccessException => (StatusCodes.Status403Forbidden, "Доступ запрещен"),
+            AccountLockedException => (StatusCodes.Status423Locked, "Аккаунт заблокирован"),
             
             _ => (StatusCodes.Status500InternalServerError, "Внутренняя ошибка сервера")
         };

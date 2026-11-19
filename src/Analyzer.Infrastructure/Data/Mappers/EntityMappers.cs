@@ -15,11 +15,19 @@ public static class EntityMappers
         PasswordHash = user.PasswordHash,
         Role = (int)user.Role,
         TeamId = user.TeamId,
-        AvatarId = user.AvatarId
+        AvatarId = user.AvatarId,
+        IsTwoFactorEnabled = user.IsTwoFactorEnabled,
+        FailedLoginAttempts = user.FailedLoginAttempts,
+        LockoutEnd = user.LockoutEnd,
+        TwoFactorCode = user.TwoFactorCode,
+        TwoFactorCodeExpiry = user.TwoFactorCodeExpiry,
+        UnlockCode = user.UnlockCode,
+        UnlockCodeExpiry = user.UnlockCodeExpiry,
     };
 
-    public static User ToDomain(this UserEntity entity) =>
-        User.Restore(
+    public static User ToDomain(this UserEntity entity)
+    {
+        var user = User.Restore(
             entity.Id,
             entity.Username,
             entity.Email,
@@ -27,6 +35,18 @@ public static class EntityMappers
             (Role)entity.Role,
             entity.TeamId,
             entity.AvatarId);
+
+        user.LoadAuthState(
+            entity.IsTwoFactorEnabled,
+            entity.FailedLoginAttempts,
+            entity.LockoutEnd,
+            entity.TwoFactorCode,
+            entity.TwoFactorCodeExpiry,
+            entity.UnlockCode,
+            entity.UnlockCodeExpiry);
+
+        return user;
+    }
     #endregion
 
     #region Team

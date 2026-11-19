@@ -3,6 +3,8 @@ using Analyzer.Application.Interfaces.Services;
 using Analyzer.Domain.Entities;
 using Analyzer.Shared.DTO.Common;
 using Analyzer.Application.Interfaces.Providers;
+using Analyzer.Shared.DTO.V2;
+using Analyzer.Domain.Exceptions;
 
 namespace Analyzer.Application.Services;
 
@@ -10,12 +12,14 @@ public class UserService(
     IUserRepository userRepository,
     IJwtProvider jwtProvider,
     IInviteService inviteService,
-    IAvatarRepository avatarRepository) : IUserService
+    IAvatarRepository avatarRepository,
+    IEmailProvider? emailProvider = null) : IUserService
 {
     private readonly IUserRepository _userRepository = userRepository;
     private readonly IJwtProvider _jwtProvider = jwtProvider;
     private readonly IInviteService _inviteService = inviteService;
     private readonly IAvatarRepository _avatarRepository = avatarRepository;
+    private readonly IEmailProvider? _emailProvider = emailProvider;
 
     public async Task<Guid> RegisterAsync(RegisterDto dto)
     {
@@ -96,6 +100,9 @@ public class UserService(
 
         if (!BCrypt.Net.BCrypt.EnhancedVerify(oldPassword, user.PasswordHash))
             throw new InvalidOperationException("Текущий пароль указан неверно.");
+        
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            throw new ArgumentException("Пароль должен содержать не менее 8 символов.");
 
         string newHash = BCrypt.Net.BCrypt.EnhancedHashPassword(newPassword);
 
@@ -165,6 +172,123 @@ public class UserService(
         await _userRepository.UpdateAsync(user);
 
         return MapToDto(user);
+    }
+
+    public async Task<LoginResultDto> AuthenticateAsync(LoginDto dto)
+    {
+        var user = await _userRepository.GetByUsernameAsync(dto.Username);
+
+        if (user is null)
+            throw new InvalidOperationException("Неверный логин или пароль");
+
+        if (user.IsLockedOut)
+            throw new AccountLockedException("Аккаунт заблокирован из-за превышения лимита попыток входа.");
+
+        if (!BCrypt.Net.BCrypt.EnhancedVerify(dto.Password, user.PasswordHash))
+        {
+            user.RecordFailedLogin(maxAttempts: 3, lockoutMinutes: 15);
+            await _userRepository.UpdateAsync(user);
+
+            if (user.IsLockedOut)
+                throw new AccountLockedException("Превышен лимит попыток входа. Аккаунт заблокирован.");
+
+            throw new InvalidOperationException("Неверный логин или пароль");
+        }
+
+        user.ResetLoginFailures();
+
+        if (user.IsTwoFactorEnabled)
+        {
+            var code = user.GenerateTwoFactorCode(expiryMinutes: 5);
+            await _userRepository.UpdateAsync(user);
+
+            if (_emailProvider is null)
+                throw new InvalidOperationException("Почтовый провайдер для 2FA не настроен.");
+
+            await _emailProvider.SendEmailAsync(
+                user.Email,
+                "Код подтверждения входа (2FA)",
+                $"Ваш одноразовый код подтверждения: {code}");
+
+            return new LoginResultDto(null, RequiresTwoFactor: true, Message: "Код подтверждения отправлен на email.");
+        }
+
+        await _userRepository.UpdateAsync(user);
+        var token = _jwtProvider.GenerateToken(user, user.Role.ToString());
+        return new LoginResultDto(token, RequiresTwoFactor: false);
+    }
+
+    public async Task<string> VerifyTwoFactorAsync(VerifyTwoFactorDto dto)
+    {
+        var user = await _userRepository.GetByUsernameAsync(dto.Username)
+            ?? throw new KeyNotFoundException("Пользователь не найден.");
+
+        if (user.IsLockedOut)
+            throw new AccountLockedException("Аккаунт заблокирован.");
+
+        if (!user.VerifyTwoFactorCode(dto.Code))
+        {
+            user.RecordFailedLogin(maxAttempts: 3, lockoutMinutes: 15);
+            await _userRepository.UpdateAsync(user);
+
+            if (user.IsLockedOut)
+                throw new AccountLockedException("Превышен лимит попыток ввода кода 2FA. Аккаунт заблокирован.");
+
+            throw new InvalidOperationException("Неверный или истекший код подтверждения.");
+        }
+
+        user.ResetLoginFailures();
+        await _userRepository.UpdateAsync(user);
+
+        return _jwtProvider.GenerateToken(user, user.Role.ToString());
+    }
+
+    public async Task RequestUnlockAsync(RequestUnlockDto dto)
+    {
+        var user = await _userRepository.GetByUsernameAsync(dto.Username)
+            ?? throw new KeyNotFoundException("Пользователь не найден.");
+
+        var unlockCode = user.GenerateUnlockCode(expiryMinutes: 15);
+        await _userRepository.UpdateAsync(user);
+
+        if (_emailProvider is null)
+            throw new InvalidOperationException("Почтовый провайдер не настроен.");
+
+        await _emailProvider.SendEmailAsync(
+            user.Email,
+            "Восстановление доступа к аккаунту",
+            $"Ваш код для разблокировки аккаунта: {unlockCode}");
+    }
+
+    public async Task ConfirmUnlockAsync(ConfirmUnlockDto dto)
+    {
+        var user = await _userRepository.GetByUsernameAsync(dto.Username)
+            ?? throw new KeyNotFoundException("Пользователь не найден.");
+
+        if (!user.TryUnlock(dto.Code))
+            throw new InvalidOperationException("Неверный или истекший код разблокировки.");
+
+        if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+        {
+            if (dto.NewPassword.Length < 8)
+                throw new ArgumentException("Пароль должен содержать не менее 8 символов.");
+
+            var newHash = BCrypt.Net.BCrypt.EnhancedHashPassword(dto.NewPassword);
+            user.ChangePassword(newHash);
+        }
+
+        await _userRepository.UpdateAsync(user);
+    }
+
+    public async Task SetTwoFactorAsync(Guid userId, bool enabled)
+    {
+        var user = await GetUserOrThrowAsync(userId);
+        if (enabled)
+            user.EnableTwoFactor();
+        else
+            user.DisableTwoFactor();
+
+        await _userRepository.UpdateAsync(user);
     }
 
     private UserDto MapToDto(User user)

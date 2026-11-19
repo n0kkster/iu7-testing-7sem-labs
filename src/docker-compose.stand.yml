@@ -54,6 +54,10 @@ services:
       AdminSettings__Password: "AdminSecret123!"
       AdminSettings__Email: "admin@analyzer.local"
 
+      SmtpSettings__Host: "stand-mailpit"
+      SmtpSettings__Port: "1025"
+      SmtpSettings__From: "noreply@analyzer.local"
+
       Serilog__WriteTo__0__Name: "Console"
       Serilog__WriteTo__1__Name: "Seq"
       Serilog__WriteTo__1__Args__serverUrl: "http://seq-ppo:80"
@@ -63,6 +67,15 @@ services:
       - stand-postgres
       - stand-neo4j
       - seq-ppo
+      - stand-mailpit
+    restart: unless-stopped
+
+  stand-mailpit:
+    image: axllent/mailpit:latest
+    container_name: analyzer-stand-mailpit
+    ports:
+      - "1025:1025"  
+      - "8025:8025"
     restart: unless-stopped
 
 volumes:

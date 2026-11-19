@@ -1,4 +1,5 @@
 using Analyzer.Domain.Enums;
+using System.Security.Cryptography;
 
 namespace Analyzer.Domain.Entities;
 
@@ -11,6 +12,15 @@ public class User
     public Role Role { get; private set; }
     public Guid? TeamId { get; private set; }
     public Guid? AvatarId { get; private set; } = null;
+
+    public bool IsTwoFactorEnabled { get; private set; }
+    public int FailedLoginAttempts { get; private set; }
+    public DateTimeOffset? LockoutEnd { get; private set; }
+    public string? TwoFactorCode { get; private set; }
+    public DateTimeOffset? TwoFactorCodeExpiry { get; private set; }
+    public string? UnlockCode { get; private set; }
+    public DateTimeOffset? UnlockCodeExpiry { get; private set; }
+    public bool IsLockedOut => LockoutEnd.HasValue && LockoutEnd.Value > DateTimeOffset.UtcNow;
 
     private User(Guid id, string username, string email, string passwordHash, Role role, Guid? teamId, Guid? avatarId)
     {
@@ -96,5 +106,92 @@ public class User
         {
             return false;
         }
+    }
+
+    public void EnableTwoFactor() => IsTwoFactorEnabled = true;
+
+    public void DisableTwoFactor()
+    {
+        IsTwoFactorEnabled = false;
+        TwoFactorCode = null;
+        TwoFactorCodeExpiry = null;
+    }
+
+    public void RecordFailedLogin(int maxAttempts = 3, int lockoutMinutes = 15)
+    {
+        FailedLoginAttempts++;
+        if (FailedLoginAttempts >= maxAttempts)
+        {
+            LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(lockoutMinutes);
+        }
+    }
+
+    public void ResetLoginFailures()
+    {
+        FailedLoginAttempts = 0;
+        LockoutEnd = null;
+    }
+
+    public string GenerateTwoFactorCode(int expiryMinutes = 5)
+    {
+        TwoFactorCode = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+        TwoFactorCodeExpiry = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes);
+        return TwoFactorCode;
+    }
+
+    public bool VerifyTwoFactorCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(TwoFactorCode) ||
+            TwoFactorCodeExpiry is null ||
+            TwoFactorCodeExpiry <= DateTimeOffset.UtcNow ||
+            !string.Equals(TwoFactorCode, code, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        TwoFactorCode = null;
+        TwoFactorCodeExpiry = null;
+        return true;
+    }
+
+    public string GenerateUnlockCode(int expiryMinutes = 15)
+    {
+        UnlockCode = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+        UnlockCodeExpiry = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes);
+        return UnlockCode;
+    }
+
+    public bool TryUnlock(string code)
+    {
+        if (string.IsNullOrWhiteSpace(UnlockCode) ||
+            UnlockCodeExpiry is null ||
+            UnlockCodeExpiry <= DateTimeOffset.UtcNow ||
+            !string.Equals(UnlockCode, code, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        ResetLoginFailures();
+        UnlockCode = null;
+        UnlockCodeExpiry = null;
+        return true;
+    }
+
+    public void LoadAuthState(
+        bool isTwoFactorEnabled,
+        int failedLoginAttempts,
+        DateTimeOffset? lockoutEnd,
+        string? twoFactorCode,
+        DateTimeOffset? twoFactorCodeExpiry,
+        string? unlockCode,
+        DateTimeOffset? unlockCodeExpiry)
+    {
+        IsTwoFactorEnabled = isTwoFactorEnabled;
+        FailedLoginAttempts = failedLoginAttempts;
+        LockoutEnd = lockoutEnd;
+        TwoFactorCode = twoFactorCode;
+        TwoFactorCodeExpiry = twoFactorCodeExpiry;
+        UnlockCode = unlockCode;
+        UnlockCodeExpiry = unlockCodeExpiry;
     }
 }

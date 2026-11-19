@@ -8,6 +8,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Testing
       - DOCKER_HOST=unix:///var/run/docker.sock
       - TESTCONTAINERS_RYUK_DISABLED=false
+      - ADMIN_PASSWORD
+      - BDD_TECH_PASSWORD
+      - BDD_TECH_NEW_PASSWORD
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./TestResults:/app/TestResults
