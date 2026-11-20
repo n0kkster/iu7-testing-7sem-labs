@@ -15,17 +15,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY . .
+COPY Analyzer.Domain/*.csproj ./Analyzer.Domain/
+COPY Analyzer.Application/*.csproj ./Analyzer.Application/
+COPY Analyzer.Infrastructure/*.csproj ./Analyzer.Infrastructure/
+COPY Analyzer.Shared/*.csproj ./Analyzer.Shared/
+COPY Analyzer.Api/*.csproj ./Analyzer.Api/
+COPY Analyzer.Tests/*.csproj ./Analyzer.Tests/
+COPY Analyzer.IntegrationTests/*.csproj ./Analyzer.IntegrationTests/
+COPY Analyzer.BddTests/*.csproj ./Analyzer.BddTests/
 
 RUN dotnet restore Analyzer.Tests/Analyzer.Tests.csproj && \
     dotnet restore Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj && \
     dotnet restore Analyzer.BddTests/Analyzer.BddTests.csproj
 
-RUN chmod +x run-tests.sh
+COPY . .
+
+RUN sed -i 's/\r$//' run-tests.sh && chmod +x run-tests.sh
 
 RUN dotnet build Analyzer.Tests/Analyzer.Tests.csproj --configuration Release --no-restore && \
     dotnet build Analyzer.IntegrationTests/Analyzer.IntegrationTests.csproj --configuration Release --no-restore && \
     dotnet build Analyzer.BddTests/Analyzer.BddTests.csproj --configuration Release --no-restore
-    
+
 ENTRYPOINT ["./run-tests.sh"]
 CMD ["all"]

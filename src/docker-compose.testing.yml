@@ -1,5 +1,7 @@
 services:
+  services:
   test-runner:
+    image: ${TEST_RUNNER_IMAGE:-analyzer-test-runner}
     build:
       context: .
       dockerfile: Dockerfile.testing
