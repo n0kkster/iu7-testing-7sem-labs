@@ -192,6 +192,20 @@ public class AuthenticationSteps(ScenarioDataContext ctx)
     public async Task WhenFull2FaLoginWithNewPassword() =>
         await WhenFull2FaLoginWithPassword(SecretProvider.TechUserNewPassword);
 
+    [When("срок действия кода 2FA истекает")]
+    public async Task WhenTwoFactorCodeExpires()
+    {
+        await BddHooks.Env.ExpireTwoFactorCodeAsync(ctx.TechUserId);
+    }
+
+    [Then("токен доступа не выдается")]
+    public async Task ThenTokenIsNotIssued()
+    {
+        ctx.UserJwtToken.Should().BeNull();
+        var body = await ctx.LastResponse!.Content.ReadAsStringAsync();
+        body.Should().Contain("истекший");
+    }
+
     private async Task WhenFull2FaLoginWithPassword(string password)
     {
         await EnvClearMailAndLoginAsync(password);

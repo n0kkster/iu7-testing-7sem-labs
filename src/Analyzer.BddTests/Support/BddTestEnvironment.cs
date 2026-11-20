@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Neo4j.Driver;
 using Testcontainers.Neo4j;
 using Testcontainers.PostgreSql;
+using Npgsql;
 
 public class BddTestEnvironment : IAsyncDisposable
 {
@@ -20,6 +21,8 @@ public class BddTestEnvironment : IAsyncDisposable
     private IContainer? _mailpitContainer;
     private WebApplicationFactory<Program>? _factory;
 
+    private string _pgConnectionString = string.Empty;
+
     public MailpitClient Mailpit { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -28,6 +31,14 @@ public class BddTestEnvironment : IAsyncDisposable
         {
             var mailpitUrl = Environment.GetEnvironmentVariable("STAND_MAILPIT_URL") ?? "http://localhost:8025";
             Mailpit = new MailpitClient(mailpitUrl);
+            
+            var baseStandConn = Environment.GetEnvironmentVariable("STAND_PG_CONNECTION")
+                ?? "Host=localhost;Port=5439;Database=analyzer_stand_db;Username=postgres;Password=stand_password";
+            _pgConnectionString = new NpgsqlConnectionStringBuilder(baseStandConn)
+            {
+                Database = "analyzer_stand_db"
+            }.ConnectionString;
+
             return;
         }
 
@@ -61,6 +72,7 @@ public class BddTestEnvironment : IAsyncDisposable
         Mailpit = new MailpitClient(mailpitApiUrl);
 
         var pgConn = _pgContainer.GetConnectionString();
+        _pgConnectionString = pgConn;
         var neoUri = _neo4jContainer.GetConnectionString();
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -103,6 +115,17 @@ public class BddTestEnvironment : IAsyncDisposable
                 scope.ServiceProvider.GetRequiredService<AnalyzerDbContext>().Database.Migrate();
             });
         });
+    }
+
+    public async Task ExpireTwoFactorCodeAsync(Guid userId)
+    {
+        await using var conn = new NpgsqlConnection(_pgConnectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = new NpgsqlCommand(
+            "UPDATE users SET two_factor_code_expiry = NOW() - INTERVAL '1 minute' WHERE id = @id", conn);
+        cmd.Parameters.AddWithValue("id", userId);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     public HttpClient CreateApiClient()

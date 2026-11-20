@@ -116,7 +116,7 @@ namespace Analyzer.BddTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Authentication.feature.ndjson", 6);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Authentication.feature.ndjson", 7);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -323,6 +323,55 @@ namespace Analyzer.BddTests.Features
 #line hidden
 #line 41
     await testRunner.ThenAsync("система выдает валидный JWT-токен доступа", ((string)(null)), ((global::Reqnroll.Table)(null)), "Тогда ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Отказ во входе при вводе истекшего кода 2FA")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Аутентификация с 2FA, блокировка и плановая смена пароля")]
+        [global::Xunit.TraitAttribute("Description", "Отказ во входе при вводе истекшего кода 2FA")]
+        public async global::System.Threading.Tasks.Task ОтказВоВходеПриВводеИстекшегоКода2FA()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "4";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Отказ во входе при вводе истекшего кода 2FA", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 43
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 8
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 44
+    await testRunner.WhenAsync("пользователь вводит корректные логин и пароль", ((string)(null)), ((global::Reqnroll.Table)(null)), "Когда ");
+#line hidden
+#line 45
+    await testRunner.ThenAsync("система запрашивает подтверждение 2FA без выдачи токена", ((string)(null)), ((global::Reqnroll.Table)(null)), "Тогда ");
+#line hidden
+#line 46
+    await testRunner.AndAsync("на почту пользователя приходит письмо с 6-значным кодом подтверждения", ((string)(null)), ((global::Reqnroll.Table)(null)), "И ");
+#line hidden
+#line 47
+    await testRunner.WhenAsync("срок действия кода 2FA истекает", ((string)(null)), ((global::Reqnroll.Table)(null)), "Когда ");
+#line hidden
+#line 48
+    await testRunner.AndAsync("пользователь отправляет полученный код 2FA", ((string)(null)), ((global::Reqnroll.Table)(null)), "И ");
+#line hidden
+#line 49
+    await testRunner.ThenAsync("вход отклоняется со статусом 400 BadRequest", ((string)(null)), ((global::Reqnroll.Table)(null)), "Тогда ");
+#line hidden
+#line 50
+    await testRunner.AndAsync("токен доступа не выдается", ((string)(null)), ((global::Reqnroll.Table)(null)), "И ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
