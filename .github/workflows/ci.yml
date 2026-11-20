@@ -162,14 +162,29 @@ jobs:
           ref: gh-pages
           path: gh-pages
 
-      - name: Build Allure Report
-        uses: simple-elf/allure-report-action@master
+      - name: Build Allure Report with History
         if: always()
-        id: allure-report
-        with:
-          allure_results: ${{ github.workspace }}/allure-results
-          allure_history: allure-history
-          keep_reports: 20
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/gh-pages/history" ]; then
+            cp -r "$GITHUB_WORKSPACE/gh-pages/history" "$GITHUB_WORKSPACE/allure-results/history"
+          elif [ -d "$GITHUB_WORKSPACE/gh-pages/last-history" ]; then
+            cp -r "$GITHUB_WORKSPACE/gh-pages/last-history" "$GITHUB_WORKSPACE/allure-results/history"
+          fi
+
+          cat <<EOF > "$GITHUB_WORKSPACE/allure-results/executor.json"
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildOrder": ${{ github.run_number }},
+            "buildName": "Run #${{ github.run_number }}",
+            "buildUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "reportName": "Allure Report"
+          }
+          EOF
+
+          curl -fsSL https://github.com/allure-framework/allure2/releases/download/2.32.2/allure-2.32.2.tgz | tar -xz -C /tmp
+          /tmp/allure-2.32.2/bin/allure generate "$GITHUB_WORKSPACE/allure-results" -o "$GITHUB_WORKSPACE/allure-report" --clean
 
       - name: Deploy Allure to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
@@ -177,11 +192,11 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: allure-history
+          publish_dir: allure-report
 
       - name: Upload Allure HTML Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: allure-history
+          path: allure-report
