@@ -3,7 +3,7 @@ REPORT_DIR = coveragereport
 RESULTS_DIR = TestResults
 SEED ?= $(shell od -An -N4 -tu4 /dev/urandom | tr -d ' ')
 
-.PHONY: test test-random report clean test-offline help
+.PHONY: test test-random report clean test-offline help lab6
 
 help:
 	@echo "Доступные команды:"
@@ -12,6 +12,10 @@ help:
 	@echo "  make report       - Запуск тестов, генерация HTML-отчета и открытие в браузере"
 	@echo "  make test-offline - Запуск тестов без интернета"
 	@echo "  make clean        - Очистка сгенерированных отчетов, логов и файлов покрытия"
+	@echo "  make lab6         - Четыре прогона soak0 и отчёт по трассировке и логированию"
+
+lab6:
+	python3 scripts/run-lab6.py --output "$(or $(LAB6_OUTPUT),results/lab6)"
 
 test:
 	dotnet test $(TEST_PROJECT) \

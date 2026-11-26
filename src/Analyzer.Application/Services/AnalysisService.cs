@@ -1,5 +1,6 @@
 namespace Analyzer.Application.Services;
 
+using System.Diagnostics;
 using Analyzer.Application.Interfaces.Services;
 using Analyzer.Application.Interfaces.Repositories;
 using Analyzer.Shared.DTO.V1;
@@ -8,10 +9,14 @@ using Analyzer.Domain.Enums;
 
 public class AnalysisService(IGraphRepository repository) : IAnalysisService
 {
+    public const string ActivitySourceName = "Analyzer.Analysis";
+    private static readonly ActivitySource ActivitySource = new(ActivitySourceName);
+
     readonly IGraphRepository _repository = repository;
 
     public async Task<IReadOnlyCollection<Guid>> GetImpactedComponentsAsync(Guid failedComponentId)
     {
+        using var activity = ActivitySource.StartActivity("cascading-failure");
         return await _repository.GetCascadingFailureImpactAsync(failedComponentId);
     }
 

@@ -16,6 +16,9 @@ using Microsoft.OpenApi;
 using Neo4j.Driver;
 using Serilog;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog.Events;
 
 using Postgres = Analyzer.Infrastructure.Persistence.Postgres;
 using Mongo = Analyzer.Infrastructure.Persistence.Mongo;
@@ -31,9 +34,16 @@ var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(configuration)
-    .CreateLogger();
+var tracingEnabled = configuration.GetValue<bool>("Observability:TracingEnabled");
+var verboseLogging = configuration.GetValue<bool>("Observability:VerboseLogging");
+var logger = new LoggerConfiguration().ReadFrom.Configuration(configuration);
+if (verboseLogging)
+{
+    logger.MinimumLevel.Debug()
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information);
+}
+Log.Logger = logger.CreateLogger();
 
 try
 {
@@ -122,12 +132,25 @@ try
         .AddCheck<PostgresHealthCheck>("Postgres")
         .AddCheck<Neo4jHealthCheck>("Neo4j");
 
-    builder.Services.AddOpenTelemetry()
+    var telemetry = builder.Services.AddOpenTelemetry()
         .WithMetrics(metrics =>
         {
             metrics.AddAspNetCoreInstrumentation();
             metrics.AddPrometheusExporter();
         });
+    if (tracingEnabled)
+    {
+        telemetry.ConfigureResource(resource => resource.AddService("analyzer-api"))
+            .WithTracing(tracing => tracing
+                .AddAspNetCoreInstrumentation(options =>
+                {
+                    options.Filter = context =>
+                        !context.Request.Path.StartsWithSegments("/metrics") &&
+                        !context.Request.Path.StartsWithSegments("/api/health");
+                })
+                .AddSource(AnalysisService.ActivitySourceName, "Npgsql")
+                .AddOtlpExporter());
+    }
 
     // ============================================================================
     // 🔐 4. АУТЕНТИФИКАЦИЯ И БЕЗОПАСНОСТЬ

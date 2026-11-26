@@ -1,0 +1,84 @@
+name: analyzer-testing-lab6
+
+services:
+  api:
+    image: analyzer-testing-lab6-api
+    build:
+      context: .
+      dockerfile: Analyzer.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Testing
+      ConnectionStrings__PGConnection: Host=postgres;Database=analyzer;Username=analyzer;Password=analyzer-lab6
+      Neo4jSettings__Uri: bolt://neo4j:7687
+      Neo4jSettings__User: neo4j
+      Neo4jSettings__Password: analyzer-lab6
+      Jwt__Key: analyzer-lab6-local-signing-key-for-isolated-docker-stack
+      AdminSettings__Password: ${LAB6_ADMIN_PASSWORD:-AdminSecret123!}
+      Serilog__WriteTo__1__Args__serverUrl: http://seq
+      Observability__TracingEnabled: ${LAB6_TRACING:-false}
+      Observability__VerboseLogging: ${LAB6_VERBOSE:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    ports:
+      - "127.0.0.1:${LAB6_API_PORT:-1666}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: analyzer
+      POSTGRES_PASSWORD: analyzer-lab6
+      POSTGRES_DB: analyzer
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "analyzer", "-d", "analyzer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  neo4j:
+    image: neo4j:latest
+    environment:
+      NEO4J_AUTH: neo4j/analyzer-lab6
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "analyzer-lab6", "RETURN 1"]
+      interval: 5s
+      timeout: 8s
+      retries: 24
+
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus-lab6.yml:/etc/prometheus/prometheus.yml:ro
+
+  tempo:
+    image: grafana/tempo:2.9.0
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./monitoring/tempo-lab6.yml:/etc/tempo.yml:ro
+    ports:
+      - "127.0.0.1:${LAB6_TEMPO_PORT:-3200}:3200"
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./monitoring/grafana-lab6.yml:/etc/grafana/provisioning/datasources/lab6.yml:ro
+    ports:
+      - "127.0.0.1:${LAB6_GRAFANA_PORT:-3006}:3000"
+    depends_on:
+      - prometheus
+      - tempo
