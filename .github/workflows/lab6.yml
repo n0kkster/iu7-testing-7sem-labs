@@ -1,0 +1,52 @@
+name: Lab 6 / Observability
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [testing_06]
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'src/Analyzer.Api/**'
+      - 'src/Analyzer.Application/**'
+      - 'src/Analyzer.Infrastructure/**'
+      - 'src/docker-compose.lab6.yml'
+      - 'src/monitoring/**'
+      - 'src/scenarios/**'
+      - 'src/scripts/*lab6*'
+      - '.github/workflows/lab6.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  observability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up k6
+        uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '1.4.2'
+
+      - name: Run the four soak0 modes
+        run: python3 scripts/run-lab6.py
+
+      - name: Show resource comparison
+        if: always()
+        run: |
+          if test -f results/lab6/report.md; then
+            cat results/lab6/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report, samples and Tempo traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab6-soak0
+          path: src/results/lab6/
+          if-no-files-found: ignore
