@@ -106,10 +106,15 @@ def sample_k6(directory, env, containers):
             for service, stats in data.items():
                 writer.writerow([round(elapsed, 3), service, *stats])
 
-    if k6.returncode:
-        raise SystemExit(f"k6 завершился с кодом {k6.returncode}. Журнал: {directory / 'k6.log'}")
+    log_path = directory / "k6.log"
+    if not summary.is_file():
+        raise SystemExit(f"k6 не сохранил итоговые метрики (код {k6.returncode}). Журнал: {log_path}")
     metrics = json.loads(summary.read_text())["metrics"]
-    requests = metrics["http_reqs"]["count"]
+    requests = metrics.get("http_reqs", {}).get("count", 0)
+    if not requests:
+        raise SystemExit(f"k6 не завершил ни одного HTTP-запроса. Журнал: {log_path}")
+    if k6.returncode:
+        raise SystemExit(f"k6 завершился с кодом {k6.returncode}. Журнал: {log_path}. Метрики: {summary}")
     results = {}
     for service in SERVICES + ("monitoring", "stack"):
         members = {"monitoring": MONITORING, "stack": SERVICES}.get(service, (service,))

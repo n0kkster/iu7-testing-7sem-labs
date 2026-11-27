@@ -17,16 +17,6 @@ public sealed class Neo4jGraphRepository : IGraphRepository
     public Neo4jGraphRepository(IDriver driver)
     {
         _driver = driver;
-        Log.Information("Подключаемся к базе...");
-        try
-        {
-            _driver.VerifyConnectivityAsync().Wait();
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Невозможно подключиться к базе.");
-            throw;
-        }
         _queryConfig = new QueryConfig(database: "neo4j");
     }
 

@@ -10,6 +10,7 @@ export const options = {
         },
     },
     thresholds: {
+        http_reqs: ['count>0'],
         http_req_failed: ['rate==0'],
         checks: ['rate==1'],
     },

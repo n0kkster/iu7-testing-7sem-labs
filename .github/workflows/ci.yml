@@ -208,37 +208,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download All Test Results
+      - name: Download Test Results
         uses: actions/download-artifact@v4
         with:
+          pattern: '*-results'
           path: ${{ github.workspace }}/combined-results
-
-      - name: Flatten Test Results for Allure
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/allure-results"
-          find "$GITHUB_WORKSPACE/combined-results" -type f -name "*.trx" -exec cp {} "$GITHUB_WORKSPACE/allure-results/" \;
-          echo "=== Найдено отчетов: ==="
-          ls -la "$GITHUB_WORKSPACE/allure-results"
 
       - name: Get Allure History
         uses: actions/checkout@v4
-        if: always()
         continue-on-error: true
         with:
           ref: gh-pages
           path: gh-pages
 
       - name: Build Allure Report with History
-        if: always()
         working-directory: ${{ github.workspace }}
+        shell: bash
         run: |
-          if [ -d "$GITHUB_WORKSPACE/gh-pages/history" ]; then
-            cp -r "$GITHUB_WORKSPACE/gh-pages/history" "$GITHUB_WORKSPACE/allure-results/history"
-          elif [ -d "$GITHUB_WORKSPACE/gh-pages/last-history" ]; then
-            cp -r "$GITHUB_WORKSPACE/gh-pages/last-history" "$GITHUB_WORKSPACE/allure-results/history"
+          mkdir -p combined-results allure-results
+          find combined-results -type f -name "*.trx" -exec cp -t allure-results -- {} +
+          if [ -z "$(find allure-results -maxdepth 1 -type f -name '*.trx' -print -quit)" ]; then
+            echo "::error::No TRX test results were downloaded for Allure"
+            exit 1
           fi
 
-          cat <<EOF > "$GITHUB_WORKSPACE/allure-results/executor.json"
+          if [ -d gh-pages/history ]; then
+            cp -r gh-pages/history allure-results/history
+          elif [ -d gh-pages/last-history ]; then
+            cp -r gh-pages/last-history allure-results/history
+          fi
+
+          cat <<EOF > allure-results/executor.json
           {
             "name": "GitHub Actions",
             "type": "github",
@@ -250,19 +250,20 @@ jobs:
           EOF
 
           curl -fsSL https://github.com/allure-framework/allure2/releases/download/2.32.2/allure-2.32.2.tgz | tar -xz -C /tmp
-          /tmp/allure-2.32.2/bin/allure generate "$GITHUB_WORKSPACE/allure-results" -o "$GITHUB_WORKSPACE/allure-report" --clean
-
-      - name: Deploy Allure to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        if: always()
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: allure-report
+          /tmp/allure-2.32.2/bin/allure generate allure-results -o allure-report --clean
+          test -s allure-report/index.html
 
       - name: Upload Allure HTML Artifact
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
           path: allure-report
+          if-no-files-found: error
+
+      - name: Deploy Allure to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-report
