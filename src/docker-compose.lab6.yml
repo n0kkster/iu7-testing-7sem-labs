@@ -20,8 +20,9 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "127.0.0.1:${LAB6_API_PORT:-1666}:8080"
-    volumes:
-      - ./monitoring/lab6-api.json:/app/appsettings.json:ro
+    configs:
+      - source: lab6-api
+        target: /app/appsettings.json
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,3 +84,40 @@ services:
     depends_on:
       - prometheus
       - tempo
+
+configs:
+  lab6-api:
+    content: |
+      {
+        "Jwt": {
+          "Issuer": "AnalyzerBackend",
+          "Audience": "AnalyzerFrontend",
+          "ExpireMinutes": 60
+        },
+        "Serilog": {
+          "Using": ["Serilog.Sinks.Console", "Serilog.Sinks.Seq"],
+          "MinimumLevel": {
+            "Default": "Warning",
+            "Override": {
+              "Microsoft": "Warning",
+              "Microsoft.AspNetCore": "Warning",
+              "Microsoft.Hosting.Lifetime": "Warning",
+              "Microsoft.EntityFrameworkCore": "Warning"
+            }
+          },
+          "WriteTo": [
+            {
+              "Name": "Console",
+              "Args": {
+                "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+              }
+            },
+            {
+              "Name": "Seq",
+              "Args": {
+                "serverUrl": "http://seq"
+              }
+            }
+          ]
+        }
+      }
