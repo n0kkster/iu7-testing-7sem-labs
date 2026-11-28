@@ -28,32 +28,36 @@ jobs:
         working-directory: src
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare output directory
+        run: |
+          lab6_output=$(mktemp -d "$RUNNER_TEMP/lab6.XXXXXX")
+          printf 'LAB6_OUTPUT=%s\n' "$lab6_output" >> "$GITHUB_ENV"
+
       - name: Set up k6
         uses: grafana/setup-k6-action@v1
         with:
           k6-version: '1.4.2'
 
       - name: Run the four soak0 modes
-        run: python3 scripts/run-lab6.py
+        run: python3 scripts/run-lab6.py --output "$LAB6_OUTPUT"
 
       - name: Collect Compose diagnostics
-        if: failure()
+        if: ${{ failure() && env.LAB6_OUTPUT != '' }}
         run: |
-          mkdir -p results/lab6
-          docker compose -f docker-compose.lab6.yml ps -a 2>&1 | tee results/lab6/compose-status.log
-          docker compose -f docker-compose.lab6.yml logs --no-color --tail=150 2>&1 | tee results/lab6/compose.log
+          docker compose -f docker-compose.lab6.yml ps -a 2>&1 | tee "$LAB6_OUTPUT/compose-status.log"
+          docker compose -f docker-compose.lab6.yml logs --no-color --tail=150 2>&1 | tee "$LAB6_OUTPUT/compose.log"
 
       - name: Show resource comparison
-        if: always()
+        if: ${{ always() && env.LAB6_OUTPUT != '' }}
         run: |
-          if test -f results/lab6/report.md; then
-            cat results/lab6/report.md >> "$GITHUB_STEP_SUMMARY"
+          if test -f "$LAB6_OUTPUT/report.md"; then
+            cat "$LAB6_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload report, samples and Tempo traces
-        if: always()
+        if: ${{ always() && env.LAB6_OUTPUT != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: lab6-soak0
-          path: src/results/lab6/
+          path: ${{ env.LAB6_OUTPUT }}
           if-no-files-found: ignore
