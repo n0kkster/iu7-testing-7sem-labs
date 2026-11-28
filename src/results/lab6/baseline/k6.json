@@ -1,0 +1,45 @@
+{
+    "metrics": {
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 0,
+            "thresholds": {
+                "rate==0": false
+            },
+            "value": 0
+        },
+        "vus": {
+            "value": 300,
+            "min": 300,
+            "max": 300
+        },
+        "vus_max": {
+            "value": 300,
+            "min": 300,
+            "max": 300
+        },
+        "data_sent": {
+            "count": 180900,
+            "rate": 3014.810533629052
+        },
+        "data_received": {
+            "count": 0,
+            "rate": 0
+        },
+        "checks": {
+            "passes": 0,
+            "fails": 0,
+            "thresholds": {
+                "rate==1": false
+            },
+            "value": 0
+        }
+    },
+    "root_group": {
+        "checks": {},
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {}
+    }
+}

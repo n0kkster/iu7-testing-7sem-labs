@@ -1,0 +1,150 @@
+{
+    "metrics": {
+        "http_req_receiving": {
+            "avg": 0.04730993933174309,
+            "min": 0.011444,
+            "med": 0.044265,
+            "max": 12.312002,
+            "p(90)": 0.06205,
+            "p(95)": 0.071756
+        },
+        "data_sent": {
+            "count": 33723488,
+            "rate": 562028.979260295
+        },
+        "iteration_duration": {
+            "p(90)": 5550.4754444,
+            "p(95)": 5714.4872011,
+            "avg": 5017.869339751719,
+            "min": 3679.585824,
+            "med": 5004.946637,
+            "max": 6911.573481
+        },
+        "http_req_blocked": {
+            "med": 0.00588,
+            "max": 41.571302,
+            "p(90)": 0.007952,
+            "p(95)": 0.009037,
+            "avg": 0.1433865882842405,
+            "min": 0.00178
+        },
+        "http_req_failed": {
+            "fails": 54081,
+            "passes": 0,
+            "thresholds": {
+                "rate==0": false
+            },
+            "value": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "med": 1.653617,
+            "max": 1153.207423,
+            "p(90)": 2.736122,
+            "p(95)": 3.313559,
+            "avg": 6.9743862407685375,
+            "min": 0.793156
+        },
+        "http_req_waiting": {
+            "avg": 6.89182763227396,
+            "min": 0.755608,
+            "med": 1.585667,
+            "max": 1150.484256,
+            "p(90)": 2.666708,
+            "p(95)": 3.230487
+        },
+        "iterations": {
+            "rate": 94.97840652794936,
+            "count": 5699
+        },
+        "http_req_tls_handshaking": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0
+        },
+        "http_req_sending": {
+            "avg": 0.035248669162922776,
+            "min": 0.005898,
+            "med": 0.017132,
+            "max": 14.002401,
+            "p(90)": 0.023701,
+            "p(95)": 0.027328
+        },
+        "checks": {
+            "passes": 54081,
+            "fails": 0,
+            "thresholds": {
+                "rate==1": false
+            },
+            "value": 1
+        },
+        "http_req_duration": {
+            "max": 1153.207423,
+            "p(90)": 2.736122,
+            "p(95)": 3.313559,
+            "avg": 6.9743862407685375,
+            "min": 0.793156,
+            "med": 1.653617
+        },
+        "vus_max": {
+            "value": 500,
+            "min": 500,
+            "max": 500
+        },
+        "http_req_connecting": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.12745315400972618,
+            "min": 0,
+            "med": 0,
+            "max": 41.531355
+        },
+        "http_reqs": {
+            "rate": 901.3032467868098,
+            "count": 54081,
+            "thresholds": {
+                "count>0": false
+            }
+        },
+        "data_received": {
+            "count": 47056179,
+            "rate": 784228.9697690741
+        },
+        "vus": {
+            "max": 500,
+            "value": 500,
+            "min": 500
+        }
+    },
+    "root_group": {
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+            "get systems 200": {
+                "name": "get systems 200",
+                "path": "::get systems 200",
+                "id": "1014ee89e099d9bc50f1028e58309355",
+                "passes": 18162,
+                "fails": 0
+            },
+            "get components 200": {
+                "name": "get components 200",
+                "path": "::get components 200",
+                "id": "06230cc12869b607daecde3540897c14",
+                "passes": 18011,
+                "fails": 0
+            },
+            "analysis 200": {
+                "id": "1b794a7ad0e74f3e3d577a03d881995a",
+                "passes": 17908,
+                "fails": 0,
+                "name": "analysis 200",
+                "path": "::analysis 200"
+            }
+        },
+        "name": ""
+    }
+}
