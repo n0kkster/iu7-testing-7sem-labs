@@ -14,13 +14,14 @@ services:
       Neo4jSettings__Password: analyzer-lab6
       Jwt__Key: analyzer-lab6-local-signing-key-for-isolated-docker-stack
       AdminSettings__Password: ${LAB6_ADMIN_PASSWORD:-AdminSecret123!}
-      Serilog__WriteTo__1__Args__serverUrl: http://seq
       Observability__TracingEnabled: ${LAB6_TRACING:-false}
       Observability__VerboseLogging: ${LAB6_VERBOSE:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "127.0.0.1:${LAB6_API_PORT:-1666}:8080"
+    volumes:
+      - ./monitoring/lab6-api.json:/app/appsettings.json:ro
     depends_on:
       postgres:
         condition: service_healthy

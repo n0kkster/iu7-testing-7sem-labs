@@ -36,6 +36,13 @@ jobs:
       - name: Run the four soak0 modes
         run: python3 scripts/run-lab6.py
 
+      - name: Collect Compose diagnostics
+        if: failure()
+        run: |
+          mkdir -p results/lab6
+          docker compose -f docker-compose.lab6.yml ps -a 2>&1 | tee results/lab6/compose-status.log
+          docker compose -f docker-compose.lab6.yml logs --no-color --tail=150 2>&1 | tee results/lab6/compose.log
+
       - name: Show resource comparison
         if: always()
         run: |
