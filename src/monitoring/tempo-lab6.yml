@@ -6,6 +6,13 @@ distributor:
       protocols:
         grpc:
           endpoint: 0.0.0.0:4317
+ingester:
+  trace_idle_period: 3s
+  flush_check_period: 1s
+overrides:
+  defaults:
+    ingestion:
+      max_traces_per_user: 30000
 storage:
   trace:
     backend: local

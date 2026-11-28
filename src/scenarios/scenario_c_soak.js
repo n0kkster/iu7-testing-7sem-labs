@@ -4,8 +4,8 @@ export const options = {
     scenarios: {
         soak0: {
             executor: 'constant-vus',
-            vus: Number(__ENV.SOAK_VUS || 100),
-            duration: __ENV.SOAK_DURATION || '1m',
+            vus: Number(__ENV.SOAK_VUS || 1500),
+            duration: __ENV.SOAK_DURATION || '10m',
             gracefulStop: '0s',
         },
     },

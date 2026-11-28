@@ -75,6 +75,7 @@ def wait_http(url, timeout=90):
 def sample_k6(directory, env, containers):
     summary = directory / "k6.json"
     command = ["k6", "run", "--quiet", "--summary-export", str(summary),
+               "--summary-trend-stats", "avg,min,med,max,p(90),p(95),p(99)",
                "scenarios/scenario_c_soak.js"]
     samples = []
     start = time.monotonic()
@@ -126,6 +127,8 @@ def sample_k6(directory, env, containers):
         "requests": requests,
         "rps": metrics["http_reqs"]["rate"],
         "p95_ms": metrics["http_req_duration"]["p(95)"],
+        "p99_ms": metrics["http_req_duration"]["p(99)"],
+        "max_ms": metrics["http_req_duration"]["max"],
         "failed_rate": metrics["http_req_failed"]["value"],
         "elapsed_s": samples[-1][0] - samples[0][0],
         "resources": results,
@@ -172,16 +175,20 @@ def write_report(output, modes, env):
         "Настройки БД, каналов логирования и состав сервисов мониторинга одинаковы во всех режимах.",
         f"Стенд замера — {platform.system()} {platform.machine()}, логических CPU {os.cpu_count()}.",
         "",
-        "| Режим | Трассировка | Логирование | Запросы | Запросов/с | p95, мс | Ошибки | Трасса k6 в Tempo |",
-        "|---|---|---|---:|---:|---:|---:|---|",
+        "| Режим | Трассировка | Логирование | Запросы | Запросов/с | p95, мс | p99, мс | Макс., мс | Ошибки | Трасса k6 в Tempo |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     lines = header
     for mode, result in modes.items():
         tracing, verbose = MODES[mode]
-        trace = f"[{result['trace']}]({mode}/trace.json)" if tracing else "HTTP 404"
+        if "trace_error" in result:
+            trace = f"Ошибка проверки, ID `{result['trace_id']}`"
+        else:
+            trace = f"[{result['trace']}]({mode}/trace.json)" if tracing else "HTTP 404"
         logging = "Debug + Info ASP.NET Core и EF Core" if verbose else "По умолчанию"
         lines.append(f"| {mode} | {'Вкл.' if tracing else 'Выкл.'} | {logging} | "
                      f"{result['requests']} | {result['rps']:.1f} | {result['p95_ms']:.2f} | "
+                     f"{result['p99_ms']:.2f} | {result['max_ms']:.2f} | "
                      f"{result['failed_rate']:.2%} | {trace} |")
 
     lines += [
@@ -244,8 +251,8 @@ def main():
 
     env = os.environ.copy()
     env.update(LAB6_TRACING="false", LAB6_VERBOSE="false", ERROR_RATE="0")
-    env.setdefault("SOAK_DURATION", "1m")
-    env.setdefault("SOAK_VUS", "100")
+    env.setdefault("SOAK_DURATION", "10m")
+    env.setdefault("SOAK_VUS", "1500")
     api_url = f"http://127.0.0.1:{env.get('LAB6_API_PORT', '1666')}"
     tempo_url = f"http://127.0.0.1:{env.get('LAB6_TEMPO_PORT', '3200')}"
     build = "--no-build" if args.no_build else "--build"
@@ -282,11 +289,18 @@ def main():
             trace_id = uuid4().hex
             traceparent = f"00-{trace_id}-{uuid4().hex[:16]}-01"
             result = sample_k6(directory, {**env, "LAB6_TRACEPARENT": traceparent}, containers)
-            result["trace"] = check_trace(directory, trace_id, tracing, tempo_url)
+            try:
+                result["trace"] = check_trace(directory, trace_id, tracing, tempo_url)
+            except (OSError, ValueError, RuntimeError) as error:
+                result["trace_id"] = trace_id
+                result["trace_error"] = str(error)
+                print(f"{mode}: ошибка проверки трассы {trace_id} — {error}", flush=True)
             results[mode] = result
             write_report(output, results, env)
 
     print(f"Отчёт: {output / 'report.md'}")
+    if any("trace_error" in result for result in results.values()):
+        raise SystemExit("Проверка Tempo не прошла. Замеры сохранены в отчёте и summary.json.")
 
 
 if __name__ == "__main__":
